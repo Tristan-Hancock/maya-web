@@ -23,7 +23,7 @@ const App: React.FC = () => {
     if (!message.trim() || isLoading) return;
 
     setIsLoading(true);
-    setError(null);
+    setError(error);
     const newUserMessage: ChatMessage = { role: 'user', content: message };
     setMessages(prev => [...prev, newUserMessage]);
     
