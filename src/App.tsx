@@ -10,7 +10,7 @@ const App: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [threadId, setThreadId] = useState<string | null>(typeof window !== 'undefined' ? localStorage.getItem("threadId") : null);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -27,6 +27,7 @@ const App: React.FC = () => {
 
     setIsLoading(true);
     setError(null);
+    
 
     // Push user message
     setMessages(prev => [...prev, { role: 'user', content: message }]);
