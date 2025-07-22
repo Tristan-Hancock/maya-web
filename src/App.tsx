@@ -1,16 +1,18 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { ChatMessage } from './types';
-// import { sendMessageStream } from './services/openAIservice';
+import { sendMessage } from './services/openAIservice';
 import WelcomeScreen from './components/WelcomeScreen';
 import ChatInput from './components/ChatInput';
 import ChatMessageDisplay from './components/ChatMessage';
-
+//test 
 const App: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [threadId, setThreadId] = useState<string | null>(typeof window !== 'undefined' ? localStorage.getItem("threadId") : null);
+
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -19,44 +21,45 @@ const App: React.FC = () => {
     }
   }, [messages]);
 
+  
   const handleSendMessage = useCallback(async (message: string) => {
     if (!message.trim() || isLoading) return;
 
     setIsLoading(true);
-    setError(error);
-    const newUserMessage: ChatMessage = { role: 'user', content: message };
-    setMessages(prev => [...prev, newUserMessage]);
-    
-    // Add a placeholder for the model's response
+    setError(null);
+
+    // Push user message
+    setMessages(prev => [...prev, { role: 'user', content: message }]);
+
+    // Placeholder for assistant
+    const placeholderIndex = messages.length + 1;
     setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
     try {
-      // const stream = await sendMessageStream(message);
-      // let text = '';
-      // for await (const chunk of stream) {
-      //   const delta = chunk.choices?.[0]?.delta?.content;
-      //   if (delta) {
-      //     text += delta;
-      //     setMessages(prev => {
-      //       const copy = [...prev];
-      //       copy[copy.length - 1].content = text;
-      //       return copy;
-      //     });
-      //   }
-      // }
-      
-    } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : "An unknown error occurred.";
+      const { threadId: tid, message: reply } = await sendMessage(message, threadId ?? undefined);
+
+      if (!threadId) {
+        setThreadId(tid);
+        localStorage.setItem("threadId", tid);
+      }
+
+      setMessages(prev => {
+        const copy = [...prev];
+        copy[placeholderIndex] = { role: 'assistant', content: reply };
+        return copy;
+      });
+    } catch (e: any) {
+      const errorMessage = e?.message || "Unknown error";
       setError(errorMessage);
       setMessages(prev => {
-        const newMessages = [...prev];
-        newMessages[newMessages.length - 1].content = `Sorry, I encountered an error: ${errorMessage}`;
-        return newMessages;
+        const copy = [...prev];
+        copy[placeholderIndex] = { role: 'assistant', content: `Sorry, I hit an error: ${errorMessage}` };
+        return copy;
       });
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading]);
+  }, [isLoading, threadId, messages.length]);
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-b from-[#EAEBFF] to-[#FFFFFF] text-[#191D38]">

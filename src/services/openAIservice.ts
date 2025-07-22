@@ -15,7 +15,7 @@
 //   content: "You are Maya, a friendly and helpful AI assistant from Ovelia. Keep your responses concise and conversational.",
 // };
 
-// export const sendMessageStream = async (message: string) => {
+// export const sendMessage = async (message: string) => {
 //   try {
 //     const stream = await openai.chat.completions.create({
 //       model: "gpt-4o-mini", // or your preferred model
@@ -32,3 +32,13 @@
 //     throw new Error("Failed to get response from AI. Please check your connection or API key.");
 //   }
 // };
+export async function sendMessage(content: string, threadId?: string) {
+    const res = await fetch("/api/chat.ts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content, threadId }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json() as Promise<{ threadId: string; message: string }>;
+  }
+  
