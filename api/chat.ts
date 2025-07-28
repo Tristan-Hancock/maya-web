@@ -24,16 +24,26 @@ const ASSISTANT_ID = process.env.ASSISTANT_ID!;
 export default async function handler(req: Request) {
   try {
     const { threadId, content } = await req.json() as { threadId?: string; content: string };
+
+    //checking content lenth , reduce tokens required based on lentgth
+    if (typeof content !== "string" || content.length === 0 || content.length > 900) {
+      return new Response(
+        JSON.stringify({ error: "Invalid message length (1–2000 chars)." }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
 //adding rate limiting here
 const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
     const { success } = await ratelimit.limit(`chat:${ip}`);
+
+
 if (!success) {
   return new Response(
     JSON.stringify({ error: "Too many requests, slow down." }),
     { status: 429, headers: { "Content-Type": "application/json" } }
   );    }
 
-  
+
     // 1. Ensure a thread
     let tid = threadId;
     if (!tid) {
