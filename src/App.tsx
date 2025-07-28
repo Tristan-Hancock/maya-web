@@ -34,7 +34,7 @@ const App: React.FC = () => {
 
     // Placeholder for assistant
     const placeholderIndex = messages.length + 1;
-    setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+    setMessages(prev => [...prev, { role: 'assistant', content: 'typing... ' }]);
 
     try {
       const { threadId: tid, message: reply } = await sendMessage(message, threadId ?? undefined);
@@ -73,7 +73,7 @@ const App: React.FC = () => {
               <ChatMessageDisplay key={index} message={msg} />
             ))}
             {isLoading && messages[messages.length-1]?.role === 'user' && (
-               <ChatMessageDisplay message={{role: 'assistant', content: ''}} isLoading={true} />
+               <ChatMessageDisplay message={{role: 'assistant', content: 'typing... '}} isLoading={true} />
             )}
           </div>
         )}
