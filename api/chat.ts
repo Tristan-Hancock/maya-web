@@ -1,7 +1,22 @@
 // api/chat.ts
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
 import OpenAI from "openai";
 
 export const config = { runtime: "edge" }; // optional, faster/cheaper
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
+const ratelimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(
+    Number(process.env.RATE_LIMIT_REQUESTS) || 5,
+    `${Number(process.env.RATE_LIMIT_WINDOW) || 60} s`
+  ),
+  analytics: true,
+});
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 const ASSISTANT_ID = process.env.ASSISTANT_ID!;
@@ -9,7 +24,16 @@ const ASSISTANT_ID = process.env.ASSISTANT_ID!;
 export default async function handler(req: Request) {
   try {
     const { threadId, content } = await req.json() as { threadId?: string; content: string };
+//adding rate limiting here
+const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+    const { success } = await ratelimit.limit(`chat:${ip}`);
+if (!success) {
+  return new Response(
+    JSON.stringify({ error: "Too many requests, slow down." }),
+    { status: 429, headers: { "Content-Type": "application/json" } }
+  );    }
 
+  
     // 1. Ensure a thread
     let tid = threadId;
     if (!tid) {
