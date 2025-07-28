@@ -3,6 +3,7 @@ import React from 'react';
 import type { ChatMessage } from '../types';
 import UserIcon from './icons/UserIcon';
 import OveliaIcon from './icons/OveliaIcon';
+import DOMPurify from 'isomorphic-dompurify';
 
 interface ChatMessageProps {
   message: ChatMessage;
@@ -26,6 +27,7 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = ({ message, isLoading = f
     .replace(/```([\s\S]*?)```/g, '<pre class="bg-gray-800 text-white p-3 rounded-md my-2 text-sm"><code>$1</code></pre>')
     .replace(/`([^`]+)`/g, '<code class="bg-gray-200 text-red-500 px-1 rounded">$1</code>')
     .replace(/\n/g, '<br />');
+  const clean = DOMPurify.sanitize(formattedContent);
 
 
   return (
@@ -37,7 +39,7 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = ({ message, isLoading = f
         {isLoading && !message.content ? (
           <TypingIndicator />
         ) : (
-          <div className="text-gray-800 leading-relaxed prose" dangerouslySetInnerHTML={{ __html: formattedContent }} />
+          <div className="text-gray-800 leading-relaxed prose" dangerouslySetInnerHTML={{ __html: clean }} />
         )}
       </div>
     </div>
