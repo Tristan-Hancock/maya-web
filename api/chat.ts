@@ -49,6 +49,22 @@ export default async function handler(req: Request) {
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
     if (!token) return json({ error: "Missing bearer token" }, 401);
 
+    // --- Debugging: only when ?debug=1 ---
+    const url = new URL(req.url);
+    if (url.searchParams.get("debug") === "1") {
+      const decoded: any = (() => { try { return jose.decodeJwt(token); } catch { return null; } })();
+      const expectedIssuer = `https://cognito-idp.${COGNITO_REGION}.amazonaws.com/${COGNITO_USER_POOL_ID}`;
+      return json({
+        debug: true,
+        expectedIssuer,
+        tokenIssuer: decoded?.iss,
+        tokenUse: decoded?.token_use,
+        region: COGNITO_REGION,
+        userPool: COGNITO_USER_POOL_ID,
+      });
+    }
+    // --- end debug gate ---
+
     let userId = "anon";
     try {
       const { payload } = await jose.jwtVerify(token, jwks, {
@@ -62,9 +78,7 @@ export default async function handler(req: Request) {
 
     // 2) Robust body parsing (handles empty body & invalid JSON)
     const raw = await req.text();
-    if (!raw) {
-      return json({ error: "Empty body" }, 400);
-    }
+    if (!raw) return json({ error: "Empty body" }, 400);
 
     let bodyUnknown: any;
     try {
@@ -76,7 +90,6 @@ export default async function handler(req: Request) {
     // support { content, threadId } OR { messages:[...], threadId }
     type BodyWithContent = { threadId?: string; content: string };
     type BodyWithMessages = { threadId?: string; messages: Array<{ role: string; content: string }> };
-
     const hasMessages = (b: any): b is BodyWithMessages => b && Array.isArray(b.messages);
     const hasContent  = (b: any): b is BodyWithContent  => b && typeof b.content === "string";
 
@@ -98,18 +111,14 @@ export default async function handler(req: Request) {
       return json({ error: "Invalid message length (1–900 chars)." }, 400);
     }
 
-    // 4) Rate limiting (unchanged)
-const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
-try {
-  const { success } = await ratelimit.limit(`chat:${ip}`);
-  if (!success) {
-    return json({ error: "Too many requests, slow down." }, 429);
-  }
-} catch (e: any) {
-  // Don't block local testing if DNS/env is off
-  console.warn("Rate limit skipped (Upstash error):", e?.message || e);
-}
-
+    // 4) Rate limiting (unchanged; non-fatal if Upstash fails)
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+    try {
+      const { success } = await ratelimit.limit(`chat:${ip}`);
+      if (!success) return json({ error: "Too many requests, slow down." }, 429);
+    } catch (e: any) {
+      console.warn("Rate limit skipped (Upstash error):", e?.message || e);
+    }
 
     // 5) Ensure a thread
     let tid = threadId;
@@ -146,12 +155,13 @@ try {
     const text =
       assistantMsg?.content?.map((c) => (("text" in c && (c as any).text?.value) ? (c as any).text.value : "")).join("\n") ?? "";
 
-      return json({ threadId: tid, message: text, text });
-    } catch (err: any) {
+    return json({ threadId: tid, message: text, text }); // include both keys for client compatibility
+  } catch (err: any) {
     console.error(err);
     return json({ error: err.message || "Unknown error" }, 500);
   }
 }
+
 
 
 
