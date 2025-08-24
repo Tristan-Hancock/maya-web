@@ -9,7 +9,7 @@ import { fetchAuthSession } from "aws-amplify/auth";
     if (!idToken) throw new Error('Not authenticated');
   
     // 2) Call  backend
-    const res = await fetch('/api/chat?debug=1', { //change back to /api/chat
+    const res = await fetch('/api/chat', { //change back to /api/chat?debug=1
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
