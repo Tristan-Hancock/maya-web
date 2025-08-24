@@ -38,8 +38,9 @@ const jwks = jose.createRemoteJWKSet(
 );
 
 export default async function handler(req: Request) {
+  // 0) Block non-POST quickly (helps if a redirect turns your POST into GET)
   if (req.method !== "POST") {
-    return json({ error: "Method not allowed" }, 405);
+    return json({ error: "Method not allowed", method: req.method }, 405);
   }
 
   try {
@@ -55,53 +56,52 @@ export default async function handler(req: Request) {
         issuer: `https://cognito-idp.${COGNITO_REGION}.amazonaws.com/${COGNITO_USER_POOL_ID}`,
       });
       userId = String(payload.sub || "anon");
+    } catch (e: any) {
+      return json({ error: "Invalid token", reason: e?.message || "verify failed" }, 401);
+    }
+
+    // 2) Robust body parsing (handles empty body & invalid JSON)
+    const raw = await req.text();
+    if (!raw) {
+      return json({ error: "Empty body" }, 400);
+    }
+
+    let bodyUnknown: any;
+    try {
+      bodyUnknown = JSON.parse(raw);
     } catch {
-      return json({ error: "Invalid token" }, 401);
+      return json({ error: "Invalid JSON" }, 400);
     }
 
-    // 2) Parse body safely with type guards
+    // support { content, threadId } OR { messages:[...], threadId }
     type BodyWithContent = { threadId?: string; content: string };
-    type BodyWithMessages = {
-      threadId?: string;
-      messages: Array<{ role: string; content: string }>;
-    };
+    type BodyWithMessages = { threadId?: string; messages: Array<{ role: string; content: string }> };
 
-    function hasMessages(b: any): b is BodyWithMessages {
-      return b && Array.isArray(b.messages);
-    }
-    function hasContent(b: any): b is BodyWithContent {
-      return b && typeof b.content === "string";
-    }
+    const hasMessages = (b: any): b is BodyWithMessages => b && Array.isArray(b.messages);
+    const hasContent  = (b: any): b is BodyWithContent  => b && typeof b.content === "string";
 
-    const bodyUnknown = await req.json();
     let content = "";
     let threadId: string | undefined;
 
     if (hasMessages(bodyUnknown)) {
-      content =
-        bodyUnknown.messages.find((m) => m.role === "user")?.content?.trim() || "";
+      content = bodyUnknown.messages.find((m) => m.role === "user")?.content?.trim() || "";
       threadId = bodyUnknown.threadId;
     } else if (hasContent(bodyUnknown)) {
       content = bodyUnknown.content.trim();
       threadId = bodyUnknown.threadId;
     } else {
-      return json(
-        { error: "Invalid body. Expect {content,threadId?} or {messages[],threadId?}." },
-        400
-      );
+      return json({ error: "Invalid body. Expect {content,threadId?} or {messages[],threadId?}." }, 400);
     }
 
     // 3) Validate length
-    if (typeof content !== "string" || content.length === 0 || content.length > 900) {
+    if (content.length === 0 || content.length > 900) {
       return json({ error: "Invalid message length (1–900 chars)." }, 400);
     }
 
     // 4) Rate limiting (unchanged)
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
     const { success } = await ratelimit.limit(`chat:${ip}`);
-    if (!success) {
-      return json({ error: "Too many requests, slow down." }, 429);
-    }
+    if (!success) return json({ error: "Too many requests, slow down." }, 429);
 
     // 5) Ensure a thread
     let tid = threadId;
@@ -111,10 +111,7 @@ export default async function handler(req: Request) {
     }
 
     // 6) Add the user message
-    await openai.beta.threads.messages.create(tid, {
-      role: "user",
-      content,
-    });
+    await openai.beta.threads.messages.create(tid, { role: "user", content });
 
     // 7) Run the assistant
     const run = await openai.beta.threads.runs.create(tid, {
@@ -126,30 +123,20 @@ export default async function handler(req: Request) {
     let status = run.status;
     const started = Date.now();
     while (status === "queued" || status === "in_progress") {
-      if (Date.now() - started > 30_000) {
-        return json({ error: "Run timeout" }, 504);
-      }
+      if (Date.now() - started > 30_000) return json({ error: "Run timeout" }, 504);
       await wait(800);
       const r2 = await openai.beta.threads.runs.retrieve(run.id, { thread_id: tid });
       status = r2.status;
-      if (status === "requires_action") {
-        // handle tool-calls if you enable tools
-      }
       if (status === "failed" || status === "expired" || status === "cancelled") {
         return json({ error: `Run ${status}` }, 500);
       }
     }
 
     // 9) Grab the assistant message
-    const list = await openai.beta.threads.messages.list(tid, {
-      order: "desc",
-      limit: 5,
-    });
+    const list = await openai.beta.threads.messages.list(tid, { order: "desc", limit: 5 });
     const assistantMsg = list.data.find((m) => m.role === "assistant");
     const text =
-      assistantMsg?.content
-        ?.map((c) => (("text" in c && (c as any).text?.value) ? (c as any).text.value : ""))
-        .join("\n") ?? "";
+      assistantMsg?.content?.map((c) => (("text" in c && (c as any).text?.value) ? (c as any).text.value : "")).join("\n") ?? "";
 
     return json({ threadId: tid, message: text });
   } catch (err: any) {
@@ -157,6 +144,7 @@ export default async function handler(req: Request) {
     return json({ error: err.message || "Unknown error" }, 500);
   }
 }
+
 
 
 // --- helpers ---
