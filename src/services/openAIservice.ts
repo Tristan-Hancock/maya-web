@@ -15,7 +15,7 @@ export async function sendMessage(
   if (!idToken) throw new Error("Not authenticated");
 
   // 2) Call backend (optionally with ?debug=1)
-  const endpoint = DEBUG_CHAT ? "/api/chat?debug=1" : "/api/chat";
+  const endpoint = DEBUG_CHAT ? "/api/chat" : "/api/chat";
 
   const res = await fetch(endpoint, {
     method: "POST",

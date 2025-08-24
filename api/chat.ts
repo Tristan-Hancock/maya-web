@@ -11,6 +11,7 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY!;
 const ASSISTANT_ID = process.env.ASSISTANT_ID!;
 const COGNITO_REGION = process.env.COGNITO_REGION!;
 const COGNITO_USER_POOL_ID = process.env.COGNITO_USER_POOL_ID!;
+const JWKS_URL = `https://cognito-idp.${COGNITO_REGION}.amazonaws.com/${COGNITO_USER_POOL_ID}/.well-known/jwks.json`;
 
 // --- Clients ---
 const redis = new Redis({
@@ -36,7 +37,17 @@ const jwks = jose.createRemoteJWKSet(
     `https://cognito-idp.${COGNITO_REGION}.amazonaws.com/${COGNITO_USER_POOL_ID}/.well-known/jwks.json`
   )
 );
-
+async function cognitoKeyFunction(header: jose.JWSHeaderParameters): Promise<jose.JWK> {
+  const res = await fetch(JWKS_URL, { cache: "no-store" }); // avoid sticky caches while debugging
+  if (!res.ok) throw new Error(`JWKS fetch failed: ${res.status}`);
+  const { keys } = (await res.json()) as { keys: jose.JWK[] };
+  const jwk = keys.find((k) => k.kid === header.kid);
+  if (!jwk) throw new Error("No matching JWK (kid) in Cognito JWKS");
+  // Optional strictness: ensure RSA & RS256
+  if (jwk.kty !== "RSA") throw new Error(`Unexpected kty: ${jwk.kty}`);
+  // alg may be absent in Cognito keys; it's fine if missing
+  return jwk;
+}
 export default async function handler(req: Request) {
   // 0) Block non-POST quickly (helps if a redirect turns your POST into GET)
   if (req.method !== "POST") {
@@ -49,7 +60,6 @@ export default async function handler(req: Request) {
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
     if (!token) return json({ error: "Missing bearer token" }, 401);
 
-    // --- Debugging: only when ?debug=1 ---
 // --- Debugging: only when ?debug=1 ---
 const url = new URL(req.url);
 const debug = url.searchParams.get("debug") === "1";
@@ -86,16 +96,18 @@ if (debug) {
 // --- end debug gate ---
 
 
-    let userId = "anon";
-    try {
-      const { payload } = await jose.jwtVerify(token, jwks, {
-        algorithms: ["RS256"],
-        issuer: `https://cognito-idp.${COGNITO_REGION}.amazonaws.com/${COGNITO_USER_POOL_ID}`,
-      });
-      userId = String(payload.sub || "anon");
-    } catch (e: any) {
-      return json({ error: "Invalid token", reason: e?.message || "verify failed" }, 401);
-    }
+let userId = "anon";
+try {
+  const { payload } = await jose.jwtVerify(token, cognitoKeyFunction, {
+    algorithms: ["RS256"],
+    issuer: `https://cognito-idp.${COGNITO_REGION}.amazonaws.com/${COGNITO_USER_POOL_ID}`,
+    clockTolerance: 5, // small skew tolerance helps in prod
+    // audience: process.env.COGNITO_APP_CLIENT_ID, // uncomment if you want to enforce aud
+  });
+  userId = String(payload.sub || "anon");
+} catch (e: any) {
+  return json({ error: "Invalid token", reason: e?.message || "verify failed" }, 401);
+}
 
     // 2) Robust body parsing (handles empty body & invalid JSON)
     const raw = await req.text();
