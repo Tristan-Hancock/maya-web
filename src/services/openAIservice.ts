@@ -9,7 +9,7 @@ import { fetchAuthSession } from "aws-amplify/auth";
     if (!idToken) throw new Error('Not authenticated');
   
     // 2) Call  backend
-    const res = await fetch('/api/chat', {
+    const res = await fetch('/api/chat?debug=1', { //change back to /api/chat
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -36,6 +36,8 @@ import { fetchAuthSession } from "aws-amplify/auth";
   
     // 4) Map response to your app’s expected shape
     const data = await res.json(); // expect { text: string, threadId?: string } from server
+    console.log("DEBUG CHAT RESPONSE:", data); // 👀 look in browser console
+
     return {
       threadId: data.threadId ?? threadId ?? '',
       message: data.text ?? '',
