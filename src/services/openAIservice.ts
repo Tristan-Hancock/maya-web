@@ -3,7 +3,7 @@ import { fetchAuthSession } from "aws-amplify/auth";
 
 // Flip this to true only while debugging prod verification.
 // Or set VITE_DEBUG_CHAT=true in your env and use that instead.
-const DEBUG_CHAT = true; // <-- set to false when you're done debugging
+const DEBUG_CHAT = false; // <-- set to false when you're done debugging
 
 export async function sendMessage(
   content: string,
