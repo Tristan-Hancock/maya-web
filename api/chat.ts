@@ -99,9 +99,17 @@ export default async function handler(req: Request) {
     }
 
     // 4) Rate limiting (unchanged)
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
-    const { success } = await ratelimit.limit(`chat:${ip}`);
-    if (!success) return json({ error: "Too many requests, slow down." }, 429);
+const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+try {
+  const { success } = await ratelimit.limit(`chat:${ip}`);
+  if (!success) {
+    return json({ error: "Too many requests, slow down." }, 429);
+  }
+} catch (e: any) {
+  // Don't block local testing if DNS/env is off
+  console.warn("Rate limit skipped (Upstash error):", e?.message || e);
+}
+
 
     // 5) Ensure a thread
     let tid = threadId;
@@ -138,8 +146,8 @@ export default async function handler(req: Request) {
     const text =
       assistantMsg?.content?.map((c) => (("text" in c && (c as any).text?.value) ? (c as any).text.value : "")).join("\n") ?? "";
 
-    return json({ threadId: tid, message: text });
-  } catch (err: any) {
+      return json({ threadId: tid, message: text, text });
+    } catch (err: any) {
     console.error(err);
     return json({ error: err.message || "Unknown error" }, 500);
   }
