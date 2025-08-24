@@ -50,20 +50,41 @@ export default async function handler(req: Request) {
     if (!token) return json({ error: "Missing bearer token" }, 401);
 
     // --- Debugging: only when ?debug=1 ---
-    const url = new URL(req.url);
-    if (url.searchParams.get("debug") === "1") {
-      const decoded: any = (() => { try { return jose.decodeJwt(token); } catch { return null; } })();
-      const expectedIssuer = `https://cognito-idp.${COGNITO_REGION}.amazonaws.com/${COGNITO_USER_POOL_ID}`;
-      return json({
-        debug: true,
-        expectedIssuer,
-        tokenIssuer: decoded?.iss,
-        tokenUse: decoded?.token_use,
-        region: COGNITO_REGION,
-        userPool: COGNITO_USER_POOL_ID,
-      });
-    }
-    // --- end debug gate ---
+// --- Debugging: only when ?debug=1 ---
+const url = new URL(req.url);
+const debug = url.searchParams.get("debug") === "1";
+if (debug) {
+  const decoded: any = (() => { try { return jose.decodeJwt(token); } catch { return null; } })();
+  const expectedIssuer = `https://cognito-idp.${COGNITO_REGION}.amazonaws.com/${COGNITO_USER_POOL_ID}`;
+  // Try a real verify, but do NOT continue; just report the result
+  try {
+    await jose.jwtVerify(token, jwks, {
+      algorithms: ["RS256"],
+      issuer: expectedIssuer,
+      // audience: process.env.COGNITO_APP_CLIENT_ID, // uncomment to assert aud if needed
+    });
+    return json({
+      debug: true,
+      verify: "ok",
+      expectedIssuer,
+      tokenIssuer: decoded?.iss,
+      tokenUse: decoded?.token_use,
+      // aud: decoded?.aud,
+    });
+  } catch (e: any) {
+    return json({
+      debug: true,
+      verify: "fail",
+      reason: e?.message || String(e),
+      expectedIssuer,
+      tokenIssuer: decoded?.iss,
+      tokenUse: decoded?.token_use,
+      // aud: decoded?.aud,
+    }, 401);
+  }
+}
+// --- end debug gate ---
+
 
     let userId = "anon";
     try {
