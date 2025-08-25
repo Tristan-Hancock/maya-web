@@ -14,6 +14,7 @@ export default function ForgotPasswordForm() {
   async function request(e: React.FormEvent) {
     e.preventDefault(); clearError(); setMsg(null);
     setLoading(true);
+    if(loading)
     try {
       await startResetPassword(email);
       setStage("confirm");
