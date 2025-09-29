@@ -1,4 +1,3 @@
-// src/AuthGate.tsx
 import React from "react";
 import { useAuth } from "./auth/AuthContext";
 import AuthShell from "./auth/AuthShell";
@@ -9,6 +8,24 @@ import ForgotPasswordForm from "./auth/ForgotPasswordForm";
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const { route, user, doSignOut, loading } = useAuth();
+
+  const handleSignOut = async () => {
+    try {
+      // Clear all threadHandle keys
+      Object.keys(localStorage).forEach((k) => {
+        if (k.startsWith("maya:") && k.endsWith(":threadHandle")) {
+          localStorage.removeItem(k);
+        }
+      });
+
+      // Optionally nuke everything (if you prefer)
+      localStorage.clear();
+
+      await doSignOut();
+    } catch (e) {
+      console.error("Sign out failed:", e);
+    }
+  };
 
   if (loading) {
     return (
@@ -25,7 +42,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
           Hello, {user.username}
         </div>
         <button
-          onClick={doSignOut}
+          onClick={handleSignOut}
           className="absolute top-2 right-2 px-3 py-1 bg-[#1B2245] text-white rounded"
         >
           Sign out
