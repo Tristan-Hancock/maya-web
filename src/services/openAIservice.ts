@@ -3,51 +3,42 @@ import { fetchAuthSession } from "aws-amplify/auth";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE ??
-  "https://chlxllxu1m.execute-api.us-east-2.amazonaws.com/prod"; // fallback
+  "https://chlxllxu1m.execute-api.us-east-2.amazonaws.com/prod";
 
 export async function sendMessage(
   content: string,
-  threadId?: string
-): Promise<{ threadId: string; message: string; text?: string }> {
-  // 1) Cognito ID token
+  threadHandle?: string
+): Promise<{ threadHandle: string; message: string; quota?: { remaining: number; reset_at: number } }> {
   const { tokens } = await fetchAuthSession();
   const idToken = tokens?.idToken?.toString();
   if (!idToken) throw new Error("auth");
 
-  // 2) Call API Gateway Lambda
-  const res = await fetch(`${API_BASE}/api/chat`, { //remove api base later to route to local
+  const res = await fetch(`${API_BASE}/api/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${idToken}`,
     },
     body: JSON.stringify(
-      threadId ? { content, threadId } : { content }
-      // or use { messages:[{role:"user",content}], threadId } if you prefer
+      threadHandle ? { messages: [{ role: "user", content }], threadHandle }
+                   : { messages: [{ role: "user", content }] }
     ),
   });
 
   let data: any = null;
-  try {
-    data = await res.json();
-  } catch {
-    // ignore
-  }
+  try { data = await res.json(); } catch {}
 
   if (!res.ok) {
-    const msg =
-      data?.error ||
-      data?.reason ||
-      `http_${res.status}`;
     if (res.status === 401) throw new Error("auth");
     if (res.status === 402) throw new Error("payment");
-    if (res.status === 429) throw new Error("rate");
-    throw new Error(msg);
+    if (res.status === 429 && data?.reset_at)
+      throw new Error(`rate:${data.reset_at}`); // caller can parse and show ETA
+    throw new Error(data?.error || data?.reason || `http_${res.status}`);
   }
 
   return {
-    threadId: data.threadId ?? threadId ?? "",
+    threadHandle: data.threadHandle ?? threadHandle ?? "",
     message: data.message ?? data.text ?? "",
-    text: data.text,
+    quota: data.quota ?? undefined,
   };
 }
