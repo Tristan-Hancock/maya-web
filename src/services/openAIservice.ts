@@ -2,7 +2,7 @@
 import { fetchAuthSession } from "aws-amplify/auth";
 
 const API_BASE =
-  import.meta.env.VITE_API_BASE ??
+  import.meta.env.VITE_API_BASE_STAGING ??//change to VITE_API_BASE_STAGING for staging endpoint and VITE_API_BASE for prod
   "https://chlxllxu1m.execute-api.us-east-2.amazonaws.com/prod";
 
 export async function sendMessage(
@@ -13,7 +13,7 @@ export async function sendMessage(
   const idToken = tokens?.idToken?.toString();
   if (!idToken) throw new Error("auth");
 
-  const res = await fetch(`${API_BASE}/api/chat`, {
+  const res = await fetch(`${API_BASE}/test/api/chat`, { //change to /test/api/chat for staging endpoint and /api/chat for prod
     method: "POST",
     headers: {
       "Content-Type": "application/json",
