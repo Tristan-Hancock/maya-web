@@ -7,8 +7,8 @@ const API_BASE =
 
 export async function sendMessage(
   content: string,
-  threadId?: string
-): Promise<{ threadId: string; message: string; text?: string }> {
+  threadHandle?: string
+): Promise<{ threadHandle: string; message: string; text?: string }> {
   // 1) Cognito ID token
   const { tokens } = await fetchAuthSession();
   const idToken = tokens?.idToken?.toString();
@@ -22,8 +22,8 @@ export async function sendMessage(
       Authorization: `Bearer ${idToken}`,
     },
     body: JSON.stringify(
-      threadId ? { content, threadId } : { content }
-      // or use { messages:[{role:"user",content}], threadId } if you prefer
+      threadHandle ? { content, threadHandle } : { content }
+      // or use { messages:[{role:"user",content}], threadHandle } if you prefer
     ),
   });
 
@@ -46,7 +46,7 @@ export async function sendMessage(
   }
 
   return {
-    threadId: data.threadId ?? threadId ?? "",
+    threadHandle: data.threadHandle ?? threadHandle ?? "",
     message: data.message ?? data.text ?? "",
     text: data.text,
   };

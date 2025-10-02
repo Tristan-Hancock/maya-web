@@ -120,23 +120,23 @@
 //       return json({ error: "Invalid JSON" }, 400);
 //     }
 
-//     // support { content, threadId } OR { messages:[...], threadId }
-//     type BodyWithContent = { threadId?: string; content: string };
-//     type BodyWithMessages = { threadId?: string; messages: Array<{ role: string; content: string }> };
+//     // support { content, threadHandle } OR { messages:[...], threadHandle }
+//     type BodyWithContent = { threadHandle?: string; content: string };
+//     type BodyWithMessages = { threadHandle?: string; messages: Array<{ role: string; content: string }> };
 //     const hasMessages = (b: any): b is BodyWithMessages => b && Array.isArray(b.messages);
 //     const hasContent  = (b: any): b is BodyWithContent  => b && typeof b.content === "string";
 
 //     let content = "";
-//     let threadId: string | undefined;
+//     let threadHandle: string | undefined;
 
 //     if (hasMessages(bodyUnknown)) {
 //       content = bodyUnknown.messages.find((m) => m.role === "user")?.content?.trim() || "";
-//       threadId = bodyUnknown.threadId;
+//       threadHandle = bodyUnknown.threadHandle;
 //     } else if (hasContent(bodyUnknown)) {
 //       content = bodyUnknown.content.trim();
-//       threadId = bodyUnknown.threadId;
+//       threadHandle = bodyUnknown.threadHandle;
 //     } else {
-//       return json({ error: "Invalid body. Expect {content,threadId?} or {messages[],threadId?}." }, 400);
+//       return json({ error: "Invalid body. Expect {content,threadHandle?} or {messages[],threadHandle?}." }, 400);
 //     }
 
 //     // 3) Validate length
@@ -154,7 +154,7 @@
 //     }
 
 //     // 5) Ensure a thread
-//     let tid = threadId;
+//     let tid = threadHandle;
 //     if (!tid) {
 //       const thread = await openai.beta.threads.create();
 //       tid = thread.id;
@@ -188,7 +188,7 @@
 //     const text =
 //       assistantMsg?.content?.map((c) => (("text" in c && (c as any).text?.value) ? (c as any).text.value : "")).join("\n") ?? "";
 
-//     return json({ threadId: tid, message: text, text }); // include both keys for client compatibility
+//     return json({ threadHandle: tid, message: text, text }); // include both keys for client compatibility
 //   } catch (err: any) {
 //     console.error(err);
 //     return json({ error: err.message || "Unknown error" }, 500);
