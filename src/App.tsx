@@ -11,7 +11,7 @@ const App: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [, setError] = useState<string | null>(null);
-  const [threadId, setThreadId] = useState<string | null>(typeof window !== 'undefined' ? localStorage.getItem("threadId") : null);
+  const [threadHandle, setthreadHandle] = useState<string | null>(typeof window !== 'undefined' ? localStorage.getItem("threadHandle") : null);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -37,11 +37,11 @@ const App: React.FC = () => {
     setMessages(prev => [...prev, { role: 'assistant', content: 'typing... ' }]);
 
     try {
-      const { threadId: tid, message: reply } = await sendMessage(message, threadId ?? undefined);
+      const { threadHandle: tid, message: reply } = await sendMessage(message, threadHandle ?? undefined);
 
-      if (!threadId) {
-        setThreadId(tid);
-        localStorage.setItem("threadId", tid);
+      if (!threadHandle) {
+        setthreadHandle(tid);
+        localStorage.setItem("threadHandle", tid);
       }
 
       setMessages(prev => {
@@ -60,7 +60,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading, threadId, messages.length]);
+  }, [isLoading, threadHandle, messages.length]);
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-b from-[#EAEBFF] to-[#FFFFFF] text-[#191D38]">
