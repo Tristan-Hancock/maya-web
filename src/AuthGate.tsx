@@ -1,5 +1,5 @@
 // src/AuthGate.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "./auth/AuthContext";
 import AuthShell from "./auth/AuthShell";
 import SignInForm from "./auth/SignInForm";
@@ -10,6 +10,29 @@ import ForgotPasswordForm from "./auth/ForgotPasswordForm";
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const { route, user, doSignOut, loading, displayLabel, displayInitial } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Ensure closed after login/navigation
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [route, user]);
+
+  // Click-away + Esc to close
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
 
   if (loading) {
     return (
@@ -25,11 +48,11 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
 
     return (
       <>
-        <div className="absolute top-2 right-2">
+        <div className="absolute top-2 right-2" ref={menuRef}>
           <button
             type="button"
             aria-label="User menu"
-            onClick={() => setMenuOpen((v) => !v)}
+            onClick={() => setMenuOpen(v => !v)}
             className="h-9 w-9 rounded-full bg-[#1B2245] text-white flex items-center justify-center shadow hover:opacity-90"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current">
@@ -50,16 +73,10 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
               </div>
 
               <div className="flex flex-col gap-2 w-full">
-                <button
-                  type="button"
-                  className="w-full text-sm px-3 py-2 rounded-xl hover:bg-gray-100 transition"
-                >
+                <button type="button" className="w-full text-sm px-3 py-2 rounded-xl hover:bg-gray-100 transition">
                   Subscription
                 </button>
-                <button
-                  type="button"
-                  className="w-full text-sm px-3 py-2 rounded-xl hover:bg-gray-100 transition"
-                >
+                <button type="button" className="w-full text-sm px-3 py-2 rounded-xl hover:bg-gray-100 transition">
                   Settings
                 </button>
                 <button
