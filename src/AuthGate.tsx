@@ -34,6 +34,24 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     };
   }, [menuOpen]);
 
+  const handleSignOut = async () => {
+    try {
+      // Clear all threadHandle keys
+      Object.keys(localStorage).forEach((k) => {
+        if (k.startsWith("maya:") && k.endsWith(":threadHandle")) {
+          localStorage.removeItem(k);
+        }
+      });
+
+      // Optionally nuke everything (if you prefer)
+      localStorage.clear();
+
+      await doSignOut();
+    } catch (e) {
+      console.error("Sign out failed:", e);
+    }
+  };
+
   if (loading) {
     return (
       <AuthShell>
@@ -90,7 +108,12 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
             </div>
           )}
         </div>
-
+        <button
+          onClick={handleSignOut}
+          className="absolute top-2 right-2 px-3 py-1 bg-[#1B2245] text-white rounded"
+        >
+          Sign out
+        </button>
         {children}
       </>
     );

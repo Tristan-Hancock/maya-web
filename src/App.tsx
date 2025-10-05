@@ -1,11 +1,11 @@
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { ChatMessage } from './types';
 import { sendMessage } from './services/openAIservice';
+import { fetchAuthSession } from 'aws-amplify/auth'; // <-- add
 import WelcomeScreen from './components/WelcomeScreen';
 import ChatInput from './components/ChatInput';
 import ChatMessageDisplay from './components/ChatMessage';
-//test 
+
 const App: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -13,26 +13,40 @@ const App: React.FC = () => {
   const [, setError] = useState<string | null>(null);
   const [threadHandle, setthreadHandle] = useState<string | null>(typeof window !== 'undefined' ? localStorage.getItem("threadHandle") : null);
 
-  const chatContainerRef = useRef<HTMLDivElement>(null);
+  // per-user keyed storage
+  const [userKey, setUserKey] = useState<string | null>(null);
+  const [threadHandle, setThreadHandle] = useState<string | null>(null);
 
+  // resolve user sub once, then load their handle
+  useEffect(() => {
+    (async () => {
+      try {
+        const { tokens } = await fetchAuthSession();
+        const sub = (tokens?.idToken as any)?.payload?.sub as string | undefined;
+        if (!sub) return;
+        const k = `maya:${sub}:threadHandle`;
+        setUserKey(k);
+        const saved = localStorage.getItem(k);
+        if (saved) setThreadHandle(saved);
+      } catch {
+        // not signed in or session unavailable
+      }
+    })();
+  }, []);
+
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages]);
 
-  
   const handleSendMessage = useCallback(async (message: string) => {
     if (!message.trim() || isLoading) return;
-
     setIsLoading(true);
     setError(null);
-    
 
-    // Push user message
     setMessages(prev => [...prev, { role: 'user', content: message }]);
-
-    // Placeholder for assistant
     const placeholderIndex = messages.length + 1;
     setMessages(prev => [...prev, { role: 'assistant', content: 'typing... ' }]);
 
@@ -57,6 +71,11 @@ const App: React.FC = () => {
         copy[placeholderIndex] = { role: 'assistant', content: `Sorry, I hit an error: ${errorMessage}` };
         return copy;
       });
+      // if this was an invalid_thread_handle from a prior user, clear it
+      if (/invalid_thread_handle/i.test(errorMessage) && userKey) {
+        localStorage.removeItem(userKey);
+        setThreadHandle(null);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -87,7 +106,7 @@ const App: React.FC = () => {
             onSend={handleSendMessage}
             isLoading={isLoading}
           />
-           <p className="text-center text-xs text-gray-500 mt-3">
+          <p className="text-center text-xs text-gray-500 mt-3">
             Maya can make mistakes. Consider checking important information.
           </p>
         </div>
