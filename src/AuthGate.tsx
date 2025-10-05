@@ -105,4 +105,3 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     </AuthShell>
   );
 }
-//
