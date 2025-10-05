@@ -32,9 +32,18 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = ({ message, isLoading = f
 
   return (
     <div className={`flex items-start gap-4 my-6 ${!isModel && 'flex-row-reverse'}`}>
-      <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${isModel ? 'bg-indigo-100' : 'bg-gray-200'}`}>
-        {isModel ? <OveliaIcon className="w-full h-full object-cover rounded-full" /> : <UserIcon />}
-      </div>
+     <div
+  className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+    isModel ? 'bg-indigo-100' : 'bg-[#303658]'
+  }`}
+>
+  {isModel ? (
+    <OveliaIcon className="w-full h-full object-cover rounded-full" />
+  ) : (
+    <UserIcon className="text-white" />
+  )}
+</div>
+
       <div className={`max-w-[80%] p-4 rounded-2xl ${isModel ? 'bg-white rounded-tl-none' : 'bg-[#E1E0FF] rounded-tr-none'}`}>
         {isLoading && !message.content ? (
           <TypingIndicator />

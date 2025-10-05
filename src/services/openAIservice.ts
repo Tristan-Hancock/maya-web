@@ -8,6 +8,7 @@ const API_BASE =
 export async function sendMessage(
   content: string,
   threadHandle?: string
+
 ): Promise<{ threadHandle: string; message: string; quota?: { remaining: number; reset_at: number } }> {
   const { tokens } = await fetchAuthSession();
   const idToken = tokens?.idToken?.toString();
@@ -20,6 +21,7 @@ export async function sendMessage(
       Authorization: `Bearer ${idToken}`,
     },
     body: JSON.stringify(
+
       threadHandle ? { messages: [{ role: "user", content }], threadHandle }
                    : { messages: [{ role: "user", content }] }
     ),

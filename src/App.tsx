@@ -11,6 +11,7 @@ const App: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [, setError] = useState<string | null>(null);
+  const [threadHandle, setthreadHandle] = useState<string | null>(typeof window !== 'undefined' ? localStorage.getItem("threadHandle") : null);
 
   // per-user keyed storage
   const [userKey, setUserKey] = useState<string | null>(null);
@@ -50,13 +51,11 @@ const App: React.FC = () => {
     setMessages(prev => [...prev, { role: 'assistant', content: 'typing... ' }]);
 
     try {
-      const { threadHandle: th, message: reply } =
-        await sendMessage(message, threadHandle ?? undefined);
+      const { threadHandle: tid, message: reply } = await sendMessage(message, threadHandle ?? undefined);
 
-      // persist new handle only for this user
-      if (!threadHandle && th && userKey) {
-        setThreadHandle(th);
-        localStorage.setItem(userKey, th);
+      if (!threadHandle) {
+        setthreadHandle(tid);
+        localStorage.setItem("threadHandle", tid);
       }
 
       setMessages(prev => {
@@ -80,7 +79,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading, threadHandle, messages.length, userKey]);
+  }, [isLoading, threadHandle, messages.length]);
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-b from-[#EAEBFF] to-[#FFFFFF] text-[#191D38]">
