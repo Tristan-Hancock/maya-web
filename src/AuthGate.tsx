@@ -99,7 +99,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
                 </button>
                 <button
                   type="button"
-                  onClick={doSignOut}
+                  onClick={handleSignOut}
                   className="w-full text-sm px-3 py-2 rounded-xl text-red-600 hover:bg-red-50 transition"
                 >
                   Sign out
@@ -108,12 +108,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
             </div>
           )}
         </div>
-        <button
-          onClick={handleSignOut}
-          className="absolute top-2 right-2 px-3 py-1 bg-[#1B2245] text-white rounded"
-        >
-          Sign out
-        </button>
+     
         {children}
       </>
     );

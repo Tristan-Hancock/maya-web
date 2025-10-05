@@ -15,7 +15,6 @@ const App: React.FC = () => {
 
   // per-user keyed storage
   const [userKey, setUserKey] = useState<string | null>(null);
-  const [threadHandle, setThreadHandle] = useState<string | null>(null);
 
   // resolve user sub once, then load their handle
   useEffect(() => {
@@ -27,7 +26,7 @@ const App: React.FC = () => {
         const k = `maya:${sub}:threadHandle`;
         setUserKey(k);
         const saved = localStorage.getItem(k);
-        if (saved) setThreadHandle(saved);
+        if (saved) setthreadHandle(saved);
       } catch {
         // not signed in or session unavailable
       }
@@ -74,7 +73,7 @@ const App: React.FC = () => {
       // if this was an invalid_thread_handle from a prior user, clear it
       if (/invalid_thread_handle/i.test(errorMessage) && userKey) {
         localStorage.removeItem(userKey);
-        setThreadHandle(null);
+        setthreadHandle(null);
       }
     } finally {
       setIsLoading(false);
