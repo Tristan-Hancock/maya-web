@@ -1,8 +1,11 @@
 // src/types.ts
+//for ai and user messages
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
 }
+
+
 // src/types.ts
 export type PlanCode = "free" | "tier1" | "tier2" | "tier3";
 
@@ -16,14 +19,14 @@ export interface Tier {
   popular?: boolean;           // highlights the card
 }
 
-export type SubscriptionStatus =
-  | "none"
-  | "active"
-  | "past_due"
-  | "canceled";
+export type Subscription = {
+  status: "none"|"active"|"past_due"|"canceled";
+  plan_code: "free"|"tier1"|"tier2"|"tier3"|string;
+  limits: Limits;
+};
 
 export interface Limits {
-  monthly_prompts?: number | null; // null = unlimited
+  monthly_prompts?: number; // null = unlimited
   keep_history?: boolean;
   image_uploads?: number;
   doc_uploads?: number;
@@ -39,7 +42,7 @@ export interface Usage {
 export interface UserEntitlements {
   user_id: string;
   plan_code: PlanCode;
-  subscription_status: SubscriptionStatus;
+  subscription_status: Subscription;
   limits: Limits;
   usage: Usage;
   current_period_end?: number; // epoch seconds
@@ -49,6 +52,21 @@ export interface CreateSubscriptionRequest {
   plan_code: Exclude<PlanCode, "free">; // "tier1" | "tier2" | "tier3"
 }
 
+//stores thread info
+export type ThreadMeta = {
+  threadHandle: string;
+  title?: string;
+  created_at: number;
+  last_used_at: number;
+  messages: number;
+};
+//feature flags from server
+export type FeatureFlags = {
+  canHistory: boolean;
+  maxPrompts: number|null;
+  maxImages: number;
+  maxDocs: number;
+};
 export interface CreateSubscriptionResponse {
   subscription_id: string;
   status: "created" | "active" | string;
@@ -81,6 +99,6 @@ export function featureEnabled(
   return false;
 }
 
-export function isPaid(ent: UserEntitlements): boolean {
-  return ent.subscription_status === "active" && ent.plan_code !== "free";
-}
+// export function isPaid(ent: UserEntitlements): boolean {
+//   return ent.subscription_status === "active" && ent.plan_code !== "free";
+// }

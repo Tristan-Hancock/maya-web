@@ -6,7 +6,7 @@ import SignUpForm from "./auth/SignUpForm";
 import ConfirmSignUpForm from "./auth/ConfirmSignUpForm";
 import ForgotPasswordForm from "./auth/ForgotPasswordForm";
 import SubscriptionPage from "./components/subscriptions/Subscription"; // ✅ import popup component
-
+import { useApp } from "./appContext";
 function MenuIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
@@ -22,6 +22,13 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [leftOpen, setLeftOpen] = useState(false);
   const [showSubscription, setShowSubscription] = useState(false); // ✅ modal control
   const menuRef = useRef<HTMLDivElement>(null);
+  const { boot, ready } = useApp();
+
+  useEffect(() => {
+    if (route === "app" && user) boot();
+  }, [route, user, boot]);
+
+
   useEffect(() => {
     if (showSubscription) {
       const prev = document.body.style.overflow;
@@ -71,11 +78,19 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       </AuthShell>
     );
 
-  if (route === "app" && user) {
+  if (route === "app" && user ) {
     const username = displayLabel || "User";
     const initial = displayInitial || "U";
 
+    if (route === "app" && user && !ready) {
+      return (
+        <AuthShell>
+          <div className="text-center text-[#1B2245]">Preparing your workspace…</div>
+        </AuthShell>
+      );
+    }
     return (
+   
       <div className="w-full h-full relative">
         {/* Sidebar */}
         <aside

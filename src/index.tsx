@@ -7,7 +7,7 @@ import "@aws-amplify/ui-react/styles.css";
 import { AuthProvider } from "./auth/AuthContext";
 import AuthGate from "./AuthGate";
 import { BrowserRouter } from "react-router-dom";
-
+import { AppProvider } from "./appContext";
 Amplify.configure(awsconfig);
 
 const rootElement = document.getElementById("root");
@@ -19,12 +19,17 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
   <BrowserRouter>
+  <AppProvider>
 
     <AuthProvider>
       <AuthGate>
+        
         <App />
       </AuthGate>
+
     </AuthProvider>
+    </AppProvider>
+
     </BrowserRouter>
   </React.StrictMode>
 );
