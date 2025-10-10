@@ -1,3 +1,4 @@
+//AuthGate.tsx
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "./auth/AuthContext";
 import AuthShell from "./auth/AuthShell";
@@ -7,6 +8,7 @@ import ConfirmSignUpForm from "./auth/ConfirmSignUpForm";
 import ForgotPasswordForm from "./auth/ForgotPasswordForm";
 import SubscriptionPage from "./components/subscriptions/Subscription"; // ✅ import popup component
 import { useApp } from "./appContext";
+import Sidebar from "./components/sidebar/sidebar";
 function MenuIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
@@ -27,6 +29,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (route === "app" && user) boot();
   }, [route, user, boot]);
+  const { threads, activeThread, setActiveThread } = useApp();
 
 
   useEffect(() => {
@@ -92,38 +95,24 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     return (
    
       <div className="w-full h-full relative">
+        
         {/* Sidebar */}
-        <aside
-          className={`fixed left-0 top-0 h-full w-72 bg-white border-r border-gray-200 shadow-lg z-40 transition-transform duration-200 ${
-            leftOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
-        >
-          <div className="h-14 px-4 flex items-center justify-between border-b">
-            <div className="font-semibold text-[#1B2245]">Threads</div>
-            <button
-              onClick={() => setLeftOpen(false)}
-              className="text-sm px-2 py-1 rounded hover:bg-gray-100"
-            >
-              Close
-            </button>
-          </div>
-
-          <div className="p-3 space-y-2">
-            <button
-              className="w-full text-left px-3 py-2 rounded-lg bg-[#6B66FF] text-white hover:bg-[#5853e6] transition"
-              onClick={() => {
-                Object.keys(localStorage).forEach((k) => {
-                  if (k.startsWith("maya:") && k.endsWith(":threadHandle")) localStorage.removeItem(k);
-                });
-                setLeftOpen(false);
-              }}
-            >
-              + New Thread
-            </button>
-
-            <div className="text-xs text-gray-500">(Thread list placeholder)</div>
-          </div>
-        </aside>
+        <Sidebar
+  isOpen={leftOpen}
+  currentThreadId={activeThread}
+  onNewChat={() => {
+    // clear any stored handle and reset active
+    const subKey = (window as any)._mayaSubKey;
+    if (subKey) localStorage.removeItem(`maya:${subKey}:threadHandle`);
+    setActiveThread(null);
+    setLeftOpen(false);
+  }}
+  onSelectThread={(h) => {
+    setActiveThread(h);
+    setLeftOpen(false);
+  }}
+  onClose={() => setLeftOpen(false)}
+/>
 
         {/* Fixed top bar */}
         <div

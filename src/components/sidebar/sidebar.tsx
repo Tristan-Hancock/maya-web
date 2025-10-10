@@ -1,23 +1,15 @@
-// src/components/Sidebar.tsx
-import React, { useEffect, useMemo, useState } from "react";
+//sidebar.tsx
+import React, { useEffect } from "react";
 import { PlusIcon, MessageIcon, CloseIcon } from "../icons/sidebaricons";
-import { fetchAuthSession } from "aws-amplify/auth";
+import { useApp } from "../../appContext";
 
-interface SidebarProps {
+export interface SidebarProps {
   isOpen: boolean;
-  currentThreadId: string | null;
+  currentThreadId: string | null;           // keep prop to match your signature
   onNewChat: () => void;
   onSelectThread: (threadHandle: string) => void;
   onClose: () => void;
 }
-
-type ThreadItem = {
-  threadHandle: string;
-  title?: string;
-  created_at?: number;
-  last_used_at?: number;
-  message_count?: number;
-};
 
 const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
@@ -26,46 +18,19 @@ const Sidebar: React.FC<SidebarProps> = ({
   onSelectThread,
   onClose,
 }) => {
-  const base = useMemo(() => {
-    let b = (import.meta as any).env?.VITE_API_BASE_STAGING as string | undefined;
-    if (!b) {
-      console.warn("VITE_API_BASE_STAGING not set");
-      b = ""; // allow relative in dev via proxy
-    }
-    // trim trailing slash
-    return b.endsWith("/") ? b.slice(0, -1) : b;
-  }, []);
+  const { threads, activeThread, setActiveThread, refreshThreads } = useApp();
 
-  const [threads, setThreads] = useState<ThreadItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-
-  // Fetch threads whenever the panel opens
+  // Load once when opened (only if we don't already have threads)
   useEffect(() => {
     if (!isOpen) return;
+    if (threads.length === 0) void refreshThreads();
+  }, []);
 
-    (async () => {
-      setLoading(true);
-      setErr(null);
-      try {
-        const { tokens } = await fetchAuthSession();
-        const idToken = tokens?.idToken?.toString();
-        if (!idToken) throw new Error("Not authenticated");
-
-        const url = `${base}/threads/stage`; // e.g. https://.../stage/threads
-        const res = await fetch(url, {
-          headers: { Authorization: `Bearer ${idToken}` },
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || `Request failed (${res.status})`);
-        setThreads(Array.isArray(data.items) ? data.items : []);
-      } catch (e: any) {
-        setErr(e?.message || "Failed to load threads");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [isOpen, base]);
+  const handleSelect = (h: string) => {
+    setActiveThread(h);
+    onSelectThread(h);
+  };
+  console.log("[sidebar] threads ->", threads.length, threads);
 
   return (
     <>
@@ -90,30 +55,35 @@ const Sidebar: React.FC<SidebarProps> = ({
         </button>
 
         <nav className="flex-1 overflow-y-auto">
-          {loading && <div className="text-sm text-gray-300">Loading…</div>}
-          {err && <div className="text-sm text-red-300">{err}</div>}
-          {!loading && !err && threads.length === 0 && (
+          {threads.length === 0 && (
             <div className="text-sm text-gray-300">No threads yet.</div>
           )}
-          <ul className="space-y-1 mt-2">
-            {threads.map((t) => {
-              const active = currentThreadId === t.threadHandle;
-              return (
-                <li key={t.threadHandle}>
-                  <button
-                    onClick={() => onSelectThread(t.threadHandle)}
-                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-left hover:bg-gray-700 transition ${
-                      active ? "bg-gray-700" : ""
-                    }`}
-                    title={t.title || "Untitled Chat"}
-                  >
-                    <MessageIcon className="w-4 h-4 text-gray-200 flex-shrink-0" />
-                    <span className="truncate">{t.title || "Untitled Chat"}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+{threads.length > 0 && (
+  <div className="text-xs text-gray-400 mb-2">Loaded {threads.length} threads</div>
+)}
+<ul className="space-y-1 mt-2">
+  {threads.map((t) => {
+    const id = t.threadHandle;
+    const isActive = (currentThreadId ?? activeThread) === id;
+    const label = t.title || "Untitled Chat";
+    return (
+      <li key={id}>
+        <button
+          onClick={() => handleSelect(id)}
+          className={`w-full flex flex-col gap-0 px-3 py-2 rounded-md text-left hover:bg-gray-700 transition ${isActive ? "bg-gray-700" : ""}`}
+          title={label}
+        >
+          <div className="flex items-center gap-2">
+            <MessageIcon className="w-4 h-4 text-gray-200 flex-shrink-0" />
+            <span className="truncate">{label}</span>
+          </div>
+          <span className="text-[11px] text-gray-300 truncate">{id}</span>
+        </button>
+      </li>
+    );
+  })}
+</ul>
+
         </nav>
       </div>
 
