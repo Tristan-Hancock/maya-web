@@ -29,7 +29,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (route === "app" && user) boot();
   }, [route, user, boot]);
-  const { threads, activeThread, setActiveThread } = useApp();
+  const {  activeThread, setActiveThread } = useApp();
 
 
   useEffect(() => {

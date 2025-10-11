@@ -2,7 +2,7 @@
 import React from "react";
 import PricingCard from "../../components/paymentui/PricingCards";
 import { tiers } from "../../data/tiers";
-import { ArrowLeftIcon } from "../icons/sidebaricons";
+{/* import { ArrowLeftIcon } from "../icons/sidebaricons"; */}
 
 type SubscriptionPageProps = {
   onClose?: () => void; // <-- parent passes this to close modal
