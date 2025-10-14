@@ -64,11 +64,25 @@ const App: React.FC = () => {
       } catch (e: any) {
         const errorMessage = e?.message || "Unknown error";
         setError(errorMessage);
+
+
+        let displayMessage = `Sorry, I hit an error: ${errorMessage}`;
+
+        // ✅ Friendly payment upsell message
+        if (
+          errorMessage.toLowerCase().includes("payment") ||
+          errorMessage.toLowerCase().includes("402")
+        ) {
+          displayMessage = `I'd love to help you right now — however, you've reached your daily limit. 🌸  
+      Consider subscribing to unlock unlimited access and continue your chat seamlessly!`;
+        }
+      
+        
         setMessages((prev) => {
           const copy = [...prev];
           copy[placeholderIndex] = {
             role: "assistant",
-            content: `Sorry, I hit an error: ${errorMessage}`,
+            content: `${displayMessage}`,
           };
           return copy;
         });
