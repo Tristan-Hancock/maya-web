@@ -9,6 +9,7 @@ import ForgotPasswordForm from "./auth/ForgotPasswordForm";
 import SubscriptionPage from "./components/subscriptions/Subscription"; // ✅ import popup component
 import { useApp } from "./appContext";
 import Sidebar from "./components/sidebar/sidebar";
+import SettingsModal from "./components/settings/settingsmodal";
 function MenuIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
@@ -19,6 +20,7 @@ function MenuIcon(props: React.SVGProps<SVGSVGElement>) {
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const { route, user, doSignOut, loading, displayLabel, displayInitial } = useAuth();
+  const [showSettings, setShowSettings] = useState(false);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [leftOpen, setLeftOpen] = useState(false);
@@ -167,8 +169,12 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
                       Subscription
                     </button>
 
-                    <button
+                                        <button
                       type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setShowSettings(true);
+                      }}
                       className="w-full text-sm px-3 py-2 rounded-xl hover:bg-gray-100 transition"
                     >
                       Settings
@@ -218,10 +224,19 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
 
       {/* Pass onClose down so inner “Back to Chat”/close buttons can also dismiss */}
       <SubscriptionPage onClose={() => setShowSubscription(false)} />
+
     </div>
   </div>
 )}
-
+{showSettings && (
+  <SettingsModal
+    onClose={() => setShowSettings(false)}
+    onOpenSubscription={() => {
+      setShowSettings(false);
+      setShowSubscription(true);
+    }}
+  />
+)}
       </div>
     );
   }
