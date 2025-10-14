@@ -1,15 +1,17 @@
-import React, { useMemo, useState } from "react";
-import { deleteUser, fetchAuthSession } from "aws-amplify/auth";
+// SettingsModal.tsx
+import React, { useMemo, useState, useEffect } from "react";
+import { fetchAuthSession } from "aws-amplify/auth";
 import { useApp } from "../../appContext";
+import DeleteAccountModal from "./deletaccount"; // ✅ correct path/name
 
 type Props = {
   onClose: () => void;
-  onOpenSubscription?: () => void; // hook into your existing SubscriptionPage modal
+  onOpenSubscription?: () => void;
 };
 
 const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription }) => {
   const { sub } = useApp();
-  const [busy, setBusy] = useState<"idle" | "deleting">("idle");
+  const [showDelete, setShowDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const planLabel = useMemo(() => {
@@ -19,7 +21,7 @@ const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription }) => {
   }, [sub]);
 
   const [email, setEmail] = useState<string>("");
-  React.useEffect(() => {
+  useEffect(() => {
     (async () => {
       try {
         const { tokens } = await fetchAuthSession();
@@ -29,31 +31,12 @@ const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription }) => {
     })();
   }, []);
 
-  async function handleDeleteAccount() {
-    if (!confirm("Are you sure? This will permanently delete your account and all data.")) return;
-    setBusy("deleting");
-    setError(null);
-    try {
-      await deleteUser(); // Amplify Auth (v6 modular API)
-      // You might also want to clear localStorage here:
-      try { localStorage.clear(); } catch {}
-      // Let the shell/sign-out logic handle redirect after modal closes:
-      onClose();
-      // (Your AuthGate will see user state change and show AuthShell)
-    } catch (e: any) {
-      setError(e?.message || "Failed to delete account");
-    } finally {
-      setBusy("idle");
-    }
-  }
-
   function handleSubscribe() {
     if (onOpenSubscription) onOpenSubscription();
-    else alert("Open subscription modal (placeholder).");
   }
 
   function handleCancelSubscription() {
-    // Placeholder (Razorpay/Stripe cancel to be wired later)
+    // TODO: wire Razorpay/Stripe cancel
     alert("Cancel subscription (placeholder).");
   }
 
@@ -126,17 +109,27 @@ const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription }) => {
             <div className="rounded-xl border border-gray-200 p-4 flex flex-col gap-3">
               <button
                 type="button"
-                onClick={handleDeleteAccount}
-                disabled={busy === "deleting"}
-                className="rounded-xl px-4 py-2 bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
+                onClick={() => { setError(null); setShowDelete(true); }}  
+                className="rounded-xl px-4 py-2 bg-red-600 text-white hover:bg-red-700"
               >
-                {busy === "deleting" ? "Deleting…" : "Delete Account"}
+                Delete Account
               </button>
               {error && <div className="text-sm text-red-600">{error}</div>}
             </div>
           </section>
         </div>
       </div>
+
+      {/* ✅ Delete Account Modal */}
+      {showDelete && (
+        <DeleteAccountModal
+          onClose={() => setShowDelete(false)}
+          onDeleted={() => {
+            setShowDelete(false);
+            onClose(); // close settings; AuthGate will react to user deletion
+          }}
+        />
+      )}
     </div>
   );
 };
