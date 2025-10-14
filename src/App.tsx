@@ -13,7 +13,13 @@ const App: React.FC = () => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [, setError] = useState<string | null>(null);
-
+  const PAYWALL_MESSAGES = [
+    "I'd love to help right now — but you've hit today's free limit. 🌸 Upgrade to keep going!",
+    "You’ve reached the daily cap. Unlock more messages with a subscription and continue instantly.",
+    "That’s the limit for today. Subscribe to resume your chat without interruptions.",
+    "Out of free messages for now. Go premium to get unlimited access and priority replies."
+  ];
+  
   // load history whenever activeThread changes
   useEffect(() => {
     (async () => {
@@ -37,6 +43,7 @@ const App: React.FC = () => {
   }, [messages]);
 
   const handleSendMessage = useCallback(
+    
     async (message: string) => {
       if (!message.trim() || isLoading) return;
       setIsLoading(true);
@@ -64,29 +71,22 @@ const App: React.FC = () => {
       } catch (e: any) {
         const errorMessage = e?.message || "Unknown error";
         setError(errorMessage);
-
-
+      
         let displayMessage = `Sorry, I hit an error: ${errorMessage}`;
-
-        // ✅ Friendly payment upsell message
-        if (
-          errorMessage.toLowerCase().includes("payment") ||
-          errorMessage.toLowerCase().includes("402")
-        ) {
-          displayMessage = `I'd love to help you right now — however, you've reached your daily limit. 🌸  
-      Consider subscribing to unlock unlimited access and continue your chat seamlessly!`;
+      
+        // Payment/402 → pick a random friendly upsell
+        if (/payment|402/i.test(errorMessage)) {
+          const i = Math.floor(Math.random() * PAYWALL_MESSAGES.length);
+          displayMessage = PAYWALL_MESSAGES[i];
         }
       
-        
         setMessages((prev) => {
           const copy = [...prev];
-          copy[placeholderIndex] = {
-            role: "assistant",
-            content: `${displayMessage}`,
-          };
+          copy[placeholderIndex] = { role: "assistant", content: displayMessage };
           return copy;
         });
-      } finally {
+      }
+      finally {
         setIsLoading(false);
       }
     },
