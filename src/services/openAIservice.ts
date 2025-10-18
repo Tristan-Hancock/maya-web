@@ -18,6 +18,7 @@ export async function sendMessage(
   threadHandle?: string
 ): Promise<{ threadHandle: string; message: string }> {
   const headers = await authHeader();
+
   const res = await fetch(`${API_BASE}/test/api/chat`, {
     method: "POST",
     headers,
@@ -28,14 +29,23 @@ export async function sendMessage(
     }),
   });
 
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || data?.reason || `http_${res.status}`);
+  const data: any = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const err = new Error(data?.error || data?.reason || `http_${res.status}`) as any;
+    err.status = res.status;
+    err.reason = data?.reason || data?.kind || null; // "thread_limit_reached" | "prompt_cap"
+    err.cap = data?.cap;
+    err.used = data?.used;
+    throw err;
+  }
 
   return {
     threadHandle: data.threadHandle ?? threadHandle ?? "",
     message: data.message ?? data.text ?? "",
   };
 }
+
 
 /** Load history for a thread */
 export async function fetchThreadHistory(
