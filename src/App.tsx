@@ -147,8 +147,8 @@ const App: React.FC = () => {
   );
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-b from-[#EAEBFF] to-[#FFFFFF] text-[#191D38]">
-      {/* messages area with overlay */}
+<div className="flex flex-col min-h-screen text-[#191D38] bg-[repeating-linear-gradient(to_bottom,#EAEBFF_0%,#FFFFFF_40%,#EAEBFF_80%)]">
+{/* messages area with overlay */}
       <div className="relative flex-1">
         {threadLoading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center">
