@@ -13,7 +13,8 @@ const App: React.FC = () => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [, setError] = useState<string | null>(null);
- 
+  const [threadLoading, setThreadLoading] = useState(false);
+
   
   // load history whenever activeThread changes
   useEffect(() => {
@@ -37,6 +38,29 @@ const App: React.FC = () => {
     chatContainerRef.current?.scrollTo({ top: chatContainerRef.current.scrollHeight });
   }, [messages]);
 
+
+
+  //loading thread sign overlay
+  useEffect(() => {
+    (async () => {
+      if (!activeThread) {
+        setMessages([]);
+        setThreadLoading(false);
+        return;
+      }
+      setThreadLoading(true);
+      try {
+        const hist = await fetchThreadHistory(activeThread, 50);
+        setMessages(hist.map(m => ({ role: m.role, content: m.content })));
+      } catch (e: any) {
+        console.warn("[history] load failed:", e?.message);
+        setMessages([]);
+      } finally {
+        setThreadLoading(false);
+      }
+    })();
+  }, [activeThread]);
+  
   const handleSendMessage = useCallback(
     
     async (message: string) => {
@@ -124,24 +148,45 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen bg-gradient-to-b from-[#EAEBFF] to-[#FFFFFF] text-[#191D38]">
-      <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
-        {messages.length === 0 ? (
-          <WelcomeScreen />
-        ) : (
-          <div className="max-w-3xl mx-auto w-full">
-            {messages.map((msg, index) => (
-              <ChatMessageDisplay key={index} message={msg} />
-            ))}
-            {isLoading && messages[messages.length - 1]?.role === "user" && (
-              <ChatMessageDisplay
-                message={{ role: "assistant", content: "typing... " }}
-                isLoading={true}
-              />
-            )}
+      {/* messages area with overlay */}
+      <div className="relative flex-1">
+        {threadLoading && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center">
+            <div className="flex items-center gap-3 rounded-2xl bg-white/90 border border-gray-200 shadow px-4 py-3">
+              <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" className="opacity-25" />
+                <path d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" fill="currentColor" className="opacity-75" />
+              </svg>
+              <span className="text-sm text-gray-700">Loading thread…</span>
+            </div>
           </div>
         )}
+  
+        <div
+          ref={chatContainerRef}
+          className={`h-full overflow-y-auto p-4 md:p-6 space-y-6 transition-opacity ${
+            threadLoading ? "opacity-40 pointer-events-none" : ""
+          }`}
+        >
+          {messages.length === 0 ? (
+            <WelcomeScreen />
+          ) : (
+            <div className="max-w-3xl mx-auto w-full">
+              {messages.map((msg, index) => (
+                <ChatMessageDisplay key={index} message={msg} />
+              ))}
+              {isLoading && messages[messages.length - 1]?.role === "user" && (
+                <ChatMessageDisplay
+                  message={{ role: "assistant", content: "typing... " }}
+                  isLoading={true}
+                />
+              )}
+            </div>
+          )}
+        </div>
       </div>
-
+  
+      {/* input */}
       <div className="px-4 pb-4 md:pb-8 w-full sticky bottom-0 bg-gradient-to-t from-white via-white/90 to-transparent">
         <div className="max-w-3xl mx-auto">
           <ChatInput input={input} setInput={setInput} onSend={handleSendMessage} isLoading={isLoading} />
@@ -152,6 +197,7 @@ const App: React.FC = () => {
       </div>
     </div>
   );
+  
 };
 
 export default App;

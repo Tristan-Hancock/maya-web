@@ -90,7 +90,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     if (route === "app" && user && !ready) {
       return (
         <AuthShell>
-          <div className="text-center text-[#1B2245]">Preparing your workspace…</div>
+          <div className="text-center text-[#1B2245]">Contacting Maya…</div>
         </AuthShell>
       );
     }
