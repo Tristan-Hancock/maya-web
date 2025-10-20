@@ -1,4 +1,3 @@
-// src/components/paymentui/PricingCards.tsx
 import React, { useState, useEffect } from "react";
 import type { Tier } from "../../types";
 import { CheckIcon } from "../../components/icons/sidebaricons";
@@ -7,7 +6,7 @@ import { fetchAuthSession } from "aws-amplify/auth";
 type PricingCardProps = {
   tier: Tier;
   onSubscribe?: (tier: Tier) => Promise<void> | void;
-  onClose?: () => void; // ← add this
+  onClose?: () => void;
 };
 
 const PricingCard: React.FC<PricingCardProps> = ({ tier, onSubscribe, onClose }) => {
@@ -61,7 +60,6 @@ const PricingCard: React.FC<PricingCardProps> = ({ tier, onSubscribe, onClose })
     }
   };
 
-  // Optional: auto-close after success
   useEffect(() => {
     if (isSuccess && onClose) {
       const t = setTimeout(() => onClose(), 900);
@@ -75,7 +73,11 @@ const PricingCard: React.FC<PricingCardProps> = ({ tier, onSubscribe, onClose })
         <div className="flex justify-center items-center">
           <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
           </svg>
           Processing...
         </div>
@@ -91,14 +93,15 @@ const PricingCard: React.FC<PricingCardProps> = ({ tier, onSubscribe, onClose })
         isPopular ? "bg-gray-900 ring-gray-900" : "bg-white ring-gray-200"
       }`}
     >
-      {/* ✕ Close button (works in modal) */}
       {onClose && (
         <button
           type="button"
           aria-label="Close"
           onClick={onClose}
           className={`absolute top-3 right-3 rounded-md px-2 py-1 text-sm ${
-            isPopular ? "text-gray-300 hover:text-white hover:bg-white/10" : "text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+            isPopular
+              ? "text-gray-300 hover:text-white hover:bg-white/10"
+              : "text-gray-500 hover:text-gray-800 hover:bg-gray-100"
           }`}
         >
           ✕

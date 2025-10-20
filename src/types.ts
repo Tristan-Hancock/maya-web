@@ -7,7 +7,7 @@ export interface ChatMessage {
 
 
 // src/types.ts
-export type PlanCode = "free" | "tier1" | "tier2" | "tier3";
+export type PlanCode = "free" | "tier1" | "tier2" | "tier3" | "enterprise";
 
 export interface Tier {
   name: string;                // display name
