@@ -13,12 +13,7 @@ const App: React.FC = () => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [, setError] = useState<string | null>(null);
-  const PAYWALL_MESSAGES = [
-    "I'd love to help right now — but you've hit today's free limit. 🌸 Upgrade to keep going!",
-    "You’ve reached the daily cap. Unlock more messages with a subscription and continue instantly.",
-    "That’s the limit for today. Subscribe to resume your chat without interruptions.",
-    "Out of free messages for now. Go premium to get unlimited access and priority replies."
-  ];
+ 
   
   // load history whenever activeThread changes
   useEffect(() => {

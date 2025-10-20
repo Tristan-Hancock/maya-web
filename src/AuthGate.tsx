@@ -95,31 +95,74 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       );
     }
     return (
-   
       <div className="w-full h-full relative">
-        
-        {/* Sidebar */}
-        <Sidebar
-  isOpen={leftOpen}
-  currentThreadId={activeThread}
-  onNewChat={() => {
-    // clear any stored handle and reset active
-    const subKey = (window as any)._mayaSubKey;
-    if (subKey) localStorage.removeItem(`maya:${subKey}:threadHandle`);
-    setActiveThread(null);
-    setLeftOpen(false);
-  }}
-  onSelectThread={(h) => {
-    setActiveThread(h);
-    setLeftOpen(false);
-  }}
-  onClose={() => setLeftOpen(false)}
-/>
+        {/* Sidebar — desktop slide + mobile overlay */}
+        {/* Desktop sidebar */}
+        <div
+          className={`hidden lg:block fixed inset-y-0 left-0 z-30 w-72 border-r bg-white transform transition-transform duration-200 ${
+            leftOpen ? "translate-x-0" : "-translate-x-72"
+          }`}
+        >
+          <Sidebar
+            isOpen={leftOpen}
+            currentThreadId={activeThread}
+            onNewChat={() => {
+              const subKey = (window as any)._mayaSubKey;
+              if (subKey) localStorage.removeItem(`maya:${subKey}:threadHandle`);
+              setActiveThread(null);
+              setLeftOpen(false);
+            }}
+            onSelectThread={(h) => {
+              setActiveThread(h);
+              setLeftOpen(false);
+            }}
+            onClose={() => setLeftOpen(false)}
+          />
+        </div>
+    
+        {/* Mobile overlay sidebar */}
+        {/* Mobile overlay sidebar with smooth slide + fade */}
+<div
+  className={`lg:hidden fixed inset-0 z-50 transition-opacity duration-300 ${
+    leftOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+  }`}
+>
+  {/* backdrop */}
+  <div
+    className="absolute inset-0 bg-black/40 transition-opacity duration-300"
+    onClick={() => setLeftOpen(false)}
+    aria-hidden="true"
+  />
 
+  {/* sidebar panel */}
+  <div
+    className={`absolute inset-y-0 left-0 w-72 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
+      leftOpen ? "translate-x-0" : "-translate-x-full"
+    }`}
+  >
+    <Sidebar
+      isOpen={leftOpen}
+      currentThreadId={activeThread}
+      onNewChat={() => {
+        const subKey = (window as any)._mayaSubKey;
+        if (subKey) localStorage.removeItem(`maya:${subKey}:threadHandle`);
+        setActiveThread(null);
+        setLeftOpen(false);
+      }}
+      onSelectThread={(h) => {
+        setActiveThread(h);
+        setLeftOpen(false);
+      }}
+      onClose={() => setLeftOpen(false)}
+    />
+  </div>
+</div>
+
+    
         {/* Fixed top bar */}
         <div
           className={`fixed top-0 right-0 z-30 h-14 bg-white/95 backdrop-blur border-b border-gray-200 transition-[left] duration-200 ${
-            leftOpen ? "left-72" : "left-0"
+            leftOpen ? "lg:left-72 left-0" : "left-0"
           }`}
         >
           <div className="h-full max-w-6xl mx-auto px-4 flex items-center justify-between">
@@ -131,7 +174,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
             >
               <MenuIcon className="w-6 h-6 text-gray-700" />
             </button>
-
+    
             <div className="relative" ref={menuRef}>
               <button
                 type="button"
@@ -143,21 +186,20 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
                   <path d="M12 12c2.761 0 5-2.462 5-5.5S14.761 1 12 1 7 3.462 7 6.5 9.239 12 12 12zm0 2c-4.418 0-8 3.134-8 7v1h16v-1c0-3.866-3.582-7-8-7z" />
                 </svg>
               </button>
-
+    
               {menuOpen && (
                 <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-gray-200 bg-white shadow-xl p-6 flex flex-col items-center text-center">
                   <div className="mb-3">
                     <div className="text-sm font-medium text-gray-700">Hi {username}</div>
                   </div>
-
+    
                   <div className="flex flex-col items-center gap-3 mb-5">
                     <div className="h-12 w-12 rounded-full bg-[#1B2245] text-white flex items-center justify-center text-lg font-semibold">
                       {initial}
                     </div>
                   </div>
-
+    
                   <div className="flex flex-col gap-2 w-full">
-                    {/* ✅ Opens modal */}
                     <button
                       type="button"
                       onClick={() => {
@@ -168,8 +210,8 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
                     >
                       Subscription
                     </button>
-
-                                        <button
+    
+                    <button
                       type="button"
                       onClick={() => {
                         setMenuOpen(false);
@@ -179,7 +221,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
                     >
                       Settings
                     </button>
-
+    
                     <button
                       type="button"
                       onClick={handleSignOut}
@@ -193,52 +235,49 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </div>
-
+    
         {/* Spacer under top bar */}
-        <div className={leftOpen ? "ml-72 h-14 transition-[margin]" : "h-14"} />
-
+        <div className={leftOpen ? "h-14 lg:ml-72 transition-[margin]" : "h-14"} />
+    
         {/* Content */}
-        <div
-          className={`min-h-screen transition-[margin] duration-200 ${leftOpen ? "ml-72" : "ml-0"}`}
-        >
+        <div className={`min-h-screen transition-[margin] duration-200 ${leftOpen ? "lg:ml-72" : ""}`}>
           {children}
         </div>
-
-        {/* ✅ Subscription Popup Modal */}
+    
+        {/* Subscription Popup */}
         {showSubscription && (
-  <div
-    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-    onClick={() => setShowSubscription(false)}  // close on backdrop click
-  >
-    <div
-      className="relative bg-white rounded-2xl shadow-2xl max-w-5xl w-full mx-4 overflow-y-auto max-h-[90vh]"
-      onClick={(e) => e.stopPropagation()}     // prevent closing when clicking inside
-    >
-      <button
-        onClick={() => setShowSubscription(false)}
-        className="absolute top-3 right-3 text-gray-500 hover:text-gray-800"
-        aria-label="Close subscription"
-      >
-        ✕
-      </button>
-
-      {/* Pass onClose down so inner “Back to Chat”/close buttons can also dismiss */}
-      <SubscriptionPage onClose={() => setShowSubscription(false)} />
-
-    </div>
-  </div>
-)}
-{showSettings && (
-  <SettingsModal
-    onClose={() => setShowSettings(false)}
-    onOpenSubscription={() => {
-      setShowSettings(false);
-      setShowSubscription(true);
-    }}
-  />
-)}
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowSubscription(false)}
+          >
+            <div
+              className="relative bg-white rounded-2xl shadow-2xl max-w-5xl w-full mx-4 overflow-y-auto max-h-[90vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setShowSubscription(false)}
+                className="absolute top-3 right-3 text-gray-500 hover:text-gray-800"
+                aria-label="Close subscription"
+              >
+                ✕
+              </button>
+              <SubscriptionPage onClose={() => setShowSubscription(false)} />
+            </div>
+          </div>
+        )}
+    
+        {showSettings && (
+          <SettingsModal
+            onClose={() => setShowSettings(false)}
+            onOpenSubscription={() => {
+              setShowSettings(false);
+              setShowSubscription(true);
+            }}
+          />
+        )}
       </div>
     );
+    
   }
 
   return (

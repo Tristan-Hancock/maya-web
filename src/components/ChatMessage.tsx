@@ -29,30 +29,40 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = ({ message, isLoading = f
     .replace(/\n/g, '<br />');
   const clean = DOMPurify.sanitize(formattedContent);
 
-
   return (
-    <div className={`flex items-start gap-4 my-6 ${!isModel && 'flex-row-reverse'}`}>
-     <div
-  className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-    isModel ? 'bg-indigo-100' : 'bg-[#303658]'
-  }`}
->
-  {isModel ? (
-    <OveliaIcon className="w-full h-full object-cover rounded-full" />
-  ) : (
-    <UserIcon className="text-white" />
-  )}
-</div>
-
-      <div className={`max-w-[80%] p-4 rounded-2xl ${isModel ? 'bg-white rounded-tl-none' : 'bg-[#E1E0FF] rounded-tr-none'}`}>
+    <div
+      className={`flex items-start gap-3 sm:gap-4 my-4 sm:my-6 ${!isModel && "flex-row-reverse"}`}
+    >
+      <div
+        className={`shrink-0 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center ${
+          isModel ? "bg-indigo-100" : "bg-[#303658]"
+        }`}
+      >
+        {isModel ? (
+          <OveliaIcon className="w-full h-full object-cover rounded-full" />
+        ) : (
+          <UserIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+        )}
+      </div>
+  
+      <div
+        className={`max-w-[92%] sm:max-w-[80%] md:max-w-[70%] p-3 sm:p-4 rounded-2xl ${
+          isModel ? "bg-white rounded-tl-none" : "bg-[#E1E0FF] rounded-tr-none"
+        }`}
+      >
         {isLoading && !message.content ? (
           <TypingIndicator />
         ) : (
-          <div className="text-gray-800 leading-relaxed prose" dangerouslySetInnerHTML={{ __html: clean }} />
+          <div
+            className="text-gray-800 leading-relaxed break-words whitespace-pre-wrap prose prose-sm sm:prose"
+            dangerouslySetInnerHTML={{ __html: clean }}
+          />
         )}
       </div>
     </div>
   );
+  
+  
 };
 
 export default ChatMessageDisplay;
