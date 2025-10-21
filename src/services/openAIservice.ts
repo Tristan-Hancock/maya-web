@@ -1,7 +1,7 @@
 // src/services/openAIservice.ts
 import { fetchAuthSession } from "aws-amplify/auth";
 
-const API_BASE = import.meta.env.VITE_API_BASE_STAGING as string; // e.g. https://.../stage
+const API_BASE = import.meta.env.VITE_API_BASE as string; // e.g. https://.../stage
 
 export type ChatMsg = { role: "user" | "assistant" | "system"; content: string };
 
@@ -19,7 +19,7 @@ export async function sendMessage(
 ): Promise<{ threadHandle: string; message: string }> {
   const headers = await authHeader();
 
-  const res = await fetch(`${API_BASE}/test/api/chat`, {
+  const res = await fetch(`${API_BASE}/api/chat`, {
     method: "POST",
     headers,
     body: JSON.stringify({
@@ -53,7 +53,7 @@ export async function fetchThreadHistory(
   limit = 50
 ): Promise<ChatMsg[]> {
   const headers = await authHeader();
-  const res = await fetch(`${API_BASE}/threads/chat/stage`, {
+  const res = await fetch(`${API_BASE}/threads/chat/prod`, {
     method: "POST",
     headers,
     body: JSON.stringify({ mode: "history", threadHandle, limit }),

@@ -66,16 +66,33 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
 
   const handleSignOut = async () => {
     try {
-      Object.keys(localStorage).forEach((k) => {
-        if (k.startsWith("maya:") && k.endsWith(":threadHandle")) localStorage.removeItem(k);
-      });
-      localStorage.clear();
+      // ✅ Hard reset all local data to ensure no stale threads or tokens remain
+      console.log("[signout] clearing local + session storage…");
+  
+      try {
+        // Remove all app-specific keys
+        Object.keys(localStorage).forEach((k) => {
+          if (k.includes("maya") || k.includes("thread") || k.includes("user")) {
+            localStorage.removeItem(k);
+          }
+        });
+  
+        // Full wipe as safety
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch (storageError) {
+        console.warn("[signout] local/session storage clear failed:", storageError);
+      }
+  
+      // ✅ Amplify / Cognito sign-out
       await doSignOut();
+  
+      console.log("[signout] complete — all caches cleared, user signed out.");
     } catch (e) {
-      console.error("Sign out failed:", e);
+      console.error("[signout] failed:", e);
     }
   };
-
+  
   if (loading)
     return (
       <AuthShell>
