@@ -1,53 +1,73 @@
 // src/services/openAIservice.ts
 import { fetchAuthSession } from "aws-amplify/auth";
 
-const API_BASE =
-  import.meta.env.VITE_API_BASE ??
-  "https://chlxllxu1m.execute-api.us-east-2.amazonaws.com/prod"; // fallback
+const API_BASE = import.meta.env.VITE_API_BASE_STAGING as string; // e.g. https://.../stage
 
-export async function sendMessage(
-  content: string,
-  threadHandle?: string
-): Promise<{ threadHandle: string; message: string; text?: string }> {
-  // 1) Cognito ID token
+export type ChatMsg = { role: "user" | "assistant" | "system"; content: string };
+
+async function authHeader() {
   const { tokens } = await fetchAuthSession();
   const idToken = tokens?.idToken?.toString();
   if (!idToken) throw new Error("auth");
+  return { Authorization: `Bearer ${idToken}`, "Content-Type": "application/json" };
+}
 
-  // 2) Call API Gateway Lambda
-  const res = await fetch(`${API_BASE}/api/chat`, { //remove api base later to route to local
+/** Continue (or start) a chat */
+export async function sendMessage(
+  content: string,
+  threadHandle?: string
+): Promise<{ threadHandle: string; message: string }> {
+  const headers = await authHeader();
+
+  const res = await fetch(`${API_BASE}/test/api/chat`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${idToken}`,
-    },
-    body: JSON.stringify(
-      threadHandle ? { content, threadHandle } : { content }
-      // or use { messages:[{role:"user",content}], threadHandle } if you prefer
-    ),
+    headers,
+    body: JSON.stringify({
+      mode: "send",
+      content,
+      ...(threadHandle ? { threadHandle } : {}),
+    }),
   });
 
-  let data: any = null;
-  try {
-    data = await res.json();
-  } catch {
-    // ignore
-  }
+  const data: any = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    const msg =
-      data?.error ||
-      data?.reason ||
-      `http_${res.status}`;
-    if (res.status === 401) throw new Error("auth");
-    if (res.status === 402) throw new Error("payment");
-    if (res.status === 429) throw new Error("rate");
-    throw new Error(msg);
+    const err = new Error(data?.error || data?.reason || `http_${res.status}`) as any;
+    err.status = res.status;
+    err.reason = data?.reason || data?.kind || null; // "thread_limit_reached" | "prompt_cap"
+    err.cap = data?.cap;
+    err.used = data?.used;
+    throw err;
   }
 
   return {
     threadHandle: data.threadHandle ?? threadHandle ?? "",
     message: data.message ?? data.text ?? "",
-    text: data.text,
   };
+}
+
+
+/** Load history for a thread */
+export async function fetchThreadHistory(
+  threadHandle: string,
+  limit = 50
+): Promise<ChatMsg[]> {
+  const headers = await authHeader();
+  const res = await fetch(`${API_BASE}/threads/chat/stage`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ mode: "history", threadHandle, limit }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || data?.reason || `http_${res.status}`);
+
+  // Normalize to ChatMsg[]
+  const arr = Array.isArray(data.messages) ? data.messages : [];
+  return arr
+    .map((m: any) => ({
+      role: m.role === "assistant" ? "assistant" : m.role === "system" ? "system" : "user",
+      content: String(m.content ?? ""),
+    }))
+    .filter((m: ChatMsg) => !!m.content);
 }
