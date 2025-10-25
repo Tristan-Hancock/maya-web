@@ -17,8 +17,8 @@ type AppState = {
 const C = createContext<AppState | null>(null);
 export const useApp = () => useContext(C)!;
 
-const API_BASE = import.meta.env.VITE_API_BASE as string;
-const API_BASE_PAYMENTS = import.meta.env.VITE_API_BILLING as string;
+const API_BASE = import.meta.env.VITE_API_BASE_STAGING as string;
+const API_BASE_PAYMENTS = import.meta.env.VITE_API_BILLING_STAGING as string;
 
 function flagsFrom(sub: Subscription | null): FeatureFlags {
   const lim = sub?.limits || {};
