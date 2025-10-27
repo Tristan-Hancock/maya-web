@@ -18,13 +18,13 @@ const C = createContext<AppState | null>(null);
 export const useApp = () => useContext(C)!;
 
 const API_BASE = import.meta.env.VITE_API_BASE_STAGING as string;
-const API_BASE_PAYMENTS = import.meta.env.VITE_API_BILLING_STAGING as string;
+const API_BASE_PAYMENTS = import.meta.env.VITE_API_BILLING_STRIPE_STAGE as string;
 
 function flagsFrom(sub: Subscription | null): FeatureFlags {
   const lim = sub?.limits || {};
   return {
     canHistory: !!lim.keep_history,
-    maxPrompts: lim.monthly_prompts ?? (sub?.status==="active" ? null : 5),
+    maxPrompts: lim.monthly_prompts ?? (sub?.status === "active" ? null : 5),
     maxImages: lim.image_uploads ?? 0,
     maxDocs: lim.doc_uploads ?? 0,
   };
@@ -53,9 +53,10 @@ export function AppProvider({children}:{children:React.ReactNode}) {
 
   const fetchUserRow = useCallback(async (): Promise<Subscription> => {
     const h = await authHeaders();
-    const res = await fetch(`${API_BASE_PAYMENTS}/billing/status`, { headers: h });
-    const j = await res.json();
-    if (!res.ok) throw new Error(j?.error || "failed /billing/status");
+    const url = `${API_BASE_PAYMENTS}/billing/status`;
+    const res = await fetch(url, { headers: h });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(j?.error || `failed GET ${url}`);
     return {
       status: j.subscription_status ?? "none",
       plan_code: j.plan_code ?? "free",

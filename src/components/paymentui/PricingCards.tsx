@@ -1,3 +1,4 @@
+// PricingCard.tsx
 import React, { useState, useEffect } from "react";
 import type { Tier } from "../../types";
 import { CheckIcon } from "../../components/icons/sidebaricons";
@@ -23,17 +24,25 @@ const PricingCard: React.FC<PricingCardProps> = ({ tier, onSubscribe, onClose })
   }`;
 
   async function defaultSubscribe() {
+    // Get Cognito token
     const { tokens } = await fetchAuthSession();
     const idToken = tokens?.idToken?.toString();
     if (!idToken) throw new Error("Not authenticated");
 
-    const base = (import.meta as any).env?.VITE_BILLING_BASE ?? "/billing/subscriptions";
-    const url = base.startsWith("http") || base.startsWith("/") ? base : `/${base}`;
+    // Stripe checkout endpoint (your new lambda)
+    const BASE =
+      (import.meta as any).env?.VITE_API_BILLING_STRIPE_STAGE 
+     
+
+    const url = `${BASE.replace(/\/$/, "")}/billing/stripe/checkout`;
 
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
-      body: JSON.stringify({ plan_code: tier.planCode }),
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${idToken}`,
+      },
+      body: JSON.stringify({ plan_code: tier.planCode }), // e.g. "tier1"
     });
 
     const data = await res.json().catch(() => ({}));
@@ -41,6 +50,18 @@ const PricingCard: React.FC<PricingCardProps> = ({ tier, onSubscribe, onClose })
       const msg = data?.error || data?.reason || data?.message || `Request failed (${res.status})`;
       throw new Error(msg);
     }
+
+    // Redirect to hosted Stripe Checkout
+    if (data?.url) {
+      window.location.href = data.url;
+      return; // stop here; page navigates away
+    }
+
+    // If you ever switch to client-side redirect with stripe.js:
+    // const stripe = await loadStripe(data.publishable_key);
+    // await stripe?.redirectToCheckout({ sessionId: data.id });
+
+    throw new Error("Checkout URL missing from response");
   }
 
   const handleSubscription = async () => {
@@ -48,10 +69,13 @@ const PricingCard: React.FC<PricingCardProps> = ({ tier, onSubscribe, onClose })
       setIsLoading(true);
       setIsSuccess(false);
 
-      if (onSubscribe) await onSubscribe(tier);
-      else if (tier.planCode !== "free") await defaultSubscribe();
-
-      setIsSuccess(true);
+      if (onSubscribe) {
+        await onSubscribe(tier); // custom hook if you want
+      } else if (tier.planCode !== "free") {
+        await defaultSubscribe();
+      } else {
+        setIsSuccess(true);
+      }
     } catch (e) {
       console.error("Subscribe failed:", e);
       alert((e as Error)?.message || "Subscription failed");
