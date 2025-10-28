@@ -1,26 +1,47 @@
 // SettingsModal.tsx
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { useApp } from "../../appContext";
-import DeleteAccountModal from "./deletaccount"; // ✅ correct path/name
+import DeleteAccountModal from "./deletaccount";
 
 type Props = {
   onClose: () => void;
   onOpenSubscription?: () => void;
 };
 
+function fmtDate(sec?: number | null) {
+  if (!sec) return "";
+  try {
+    return new Date(sec * 1000).toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch { return ""; }
+}
+
 const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription }) => {
   const { sub } = useApp();
   const [showDelete, setShowDelete] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState<string>("");
+  const [busy, setBusy] = useState<boolean>(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const cancelAt = (sub as any)?.cancel_at as number | undefined;
+  const cpe = (sub as any)?.current_period_end as number | undefined;
 
   const planLabel = useMemo(() => {
     if (!sub) return "Free";
-    if (sub.status === "active") return sub.plan_code ? `${sub.plan_code} (Active)` : "Active";
-    return "Free";
+    const code = sub.plan_code || "free";
+    switch (sub.status) {
+      case "active": return `${code} (Active)`;
+      case "cancel_at_period_end": return `${code} (Cancels at period end)`;
+      case "past_due": return `${code} (Payment issue)`;
+      case "canceled": return "Free";
+      default: return "Free";
+    }
   }, [sub]);
 
-  const [email, setEmail] = useState<string>("");
   useEffect(() => {
     (async () => {
       try {
@@ -31,16 +52,54 @@ const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription }) => {
     })();
   }, []);
 
-  function handleSubscribe() {
-    if (onOpenSubscription) onOpenSubscription();
-  }
+  const handleSubscribe = useCallback(() => {
+    setErr(null);
+    onOpenSubscription?.();
+  }, [onOpenSubscription]);
 
-  function handleCancelSubscription() {
-    // TODO: wire Razorpay/Stripe cancel
-    alert("Cancel subscription (placeholder).");
-  }
+  // Opens Stripe Billing Portal (user can cancel there; webhook updates DB)
+  const handleCancelSubscription = useCallback(async () => {
+    try {
+      setErr(null);
+      setBusy(true);
 
-  const hasActiveSub = sub?.status === "active";
+      const { tokens } = await fetchAuthSession();
+      const idToken = tokens?.idToken?.toString();
+      if (!idToken) throw new Error("Not authenticated");
+
+      const base = (import.meta as any).env?.VITE_API_BILLING_STRIPE_STAGE as string;
+      if (!base) throw new Error("Billing base URL not configured (VITE_API_BILLING_STRIPE_STAGE)");
+
+      const url = base.endsWith("/")
+        ? `${base}billing/stripe/portal`
+        : `${base}/billing/stripe/portal`;
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({}),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.message || data?.error || `Portal request failed (${res.status})`);
+      }
+
+      const portalUrl = data?.url as string;
+      if (!portalUrl) throw new Error("Portal URL missing from response");
+
+      window.location.assign(portalUrl);
+    } catch (e: any) {
+      setErr(e?.message || "Failed to open billing portal");
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  const hasActiveSub =
+    sub?.status === "active" ||
+    sub?.status === "cancel_at_period_end" ||
+    sub?.status === "past_due";
 
   return (
     <div
@@ -76,6 +135,15 @@ const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription }) => {
                 <span className="text-gray-500">Plan:</span>{" "}
                 <span className="font-medium">{planLabel}</span>
               </div>
+              {sub?.status === "cancel_at_period_end" && (
+                <div className="text-xs text-gray-500">
+                  Scheduled to cancel on{" "}
+                  <span className="font-medium">
+                    {fmtDate(cancelAt || cpe) || "period end"}
+                  </span>
+                  . You’ll keep access until then.
+                </div>
+              )}
             </div>
           </section>
 
@@ -95,11 +163,13 @@ const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription }) => {
                 <button
                   type="button"
                   onClick={handleCancelSubscription}
-                  className="rounded-xl px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100"
+                  disabled={busy}
+                  className="rounded-xl px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-70"
                 >
-                  Cancel Subscription
+                  {busy ? "Opening portal…" : "Manage / Cancel Subscription"}
                 </button>
               )}
+              {err && <div className="text-sm text-red-600">{err}</div>}
             </div>
           </section>
 
@@ -109,24 +179,22 @@ const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription }) => {
             <div className="rounded-xl border border-gray-200 p-4 flex flex-col gap-3">
               <button
                 type="button"
-                onClick={() => { setError(null); setShowDelete(true); }}  
+                onClick={() => { setShowDelete(true); }}
                 className="rounded-xl px-4 py-2 bg-red-600 text-white hover:bg-red-700"
               >
                 Delete Account
               </button>
-              {error && <div className="text-sm text-red-600">{error}</div>}
             </div>
           </section>
         </div>
       </div>
 
-      {/* ✅ Delete Account Modal */}
       {showDelete && (
         <DeleteAccountModal
           onClose={() => setShowDelete(false)}
           onDeleted={() => {
             setShowDelete(false);
-            onClose(); // close settings; AuthGate will react to user deletion
+            onClose();
           }}
         />
       )}

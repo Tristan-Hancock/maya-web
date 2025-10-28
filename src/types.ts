@@ -20,7 +20,7 @@ export interface Tier {
 }
 
 export type Subscription = {
-  status: "none"|"active"|"past_due"|"canceled";
+  status: "none"|"active"|"past_due"|"canceled"|"cancel_at_period_end";
   plan_code: "free"|"tier1"|"tier2"|"tier3"|string;
   limits: Limits;
 };
