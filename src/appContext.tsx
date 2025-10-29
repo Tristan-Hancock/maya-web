@@ -57,12 +57,18 @@ export function AppProvider({children}:{children:React.ReactNode}) {
     const res = await fetch(url, { headers: h });
     const j = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(j?.error || `failed GET ${url}`);
+  
     return {
       status: j.subscription_status ?? "none",
       plan_code: j.plan_code ?? "free",
       limits: j.limits ?? {},
+      current_period_end: typeof j.current_period_end === "number" ? j.current_period_end : 0,
+      cancel_at: typeof j.cancel_at === "number" ? j.cancel_at : 0,
+      access_ends_at: (j.access_ends_at ?? null),
+      days_left: (typeof j.days_left === "number" ? j.days_left : null),
     };
   }, [authHeaders]);
+  
 
   // appContext.tsx
 const refreshThreads = useCallback(async (): Promise<ThreadMeta[]> => {

@@ -17,7 +17,17 @@ function fmtDate(sec?: number | null) {
       month: "short",
       day: "numeric",
     });
-  } catch { return ""; }
+  } catch {
+    return "";
+  }
+}
+
+// Robust days-left helper (handles strings / nulls)
+function daysLeft(sec?: number | string | null) {
+  const n = Number(sec);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const msRemaining = n * 1000 - Date.now();
+  return Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)));
 }
 
 const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription }) => {
@@ -27,20 +37,43 @@ const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription }) => {
   const [busy, setBusy] = useState<boolean>(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const cancelAt = (sub as any)?.cancel_at as number | undefined;
-  const cpe = (sub as any)?.current_period_end as number | undefined;
+  // Coerce numeric fields
+  const cancelAt = ((): number | undefined => {
+    const v = (sub as any)?.cancel_at;
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  })();
+
+  const cpe = ((): number | undefined => {
+    const v = (sub as any)?.current_period_end;
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  })();
+
+  // The timestamp we’ll use to compute days-left
+  const endAtSec = cancelAt || cpe;
 
   const planLabel = useMemo(() => {
     if (!sub) return "Free";
     const code = sub.plan_code || "free";
     switch (sub.status) {
-      case "active": return `${code} (Active)`;
-      case "cancel_at_period_end": return `${code} (Cancels at period end)`;
-      case "past_due": return `${code} (Payment issue)`;
-      case "canceled": return "Free";
-      default: return "Free";
+      case "active":
+        return `${code} (Active)`;
+      case "cancel_at_period_end":
+        return `${code} (Cancels at period end)`;
+      case "past_due":
+        return `${code} (Payment issue)`;
+      case "canceled":
+        return "Free";
+      default:
+        return "Free";
     }
   }, [sub]);
+
+  // Show banner when cancel is scheduled (either explicit status or active+cancel_at present)
+  const showCancelBanner =
+    sub?.status === "cancel_at_period_end" ||
+    (sub?.status === "active" && typeof cancelAt === "number");
 
   useEffect(() => {
     (async () => {
@@ -135,11 +168,15 @@ const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription }) => {
                 <span className="text-gray-500">Plan:</span>{" "}
                 <span className="font-medium">{planLabel}</span>
               </div>
-              {sub?.status === "cancel_at_period_end" && (
+
+              {showCancelBanner && (
                 <div className="text-xs text-gray-500">
-                  Scheduled to cancel on{" "}
+                  Subscription will end in{" "}
                   <span className="font-medium">
-                    {fmtDate(cancelAt || cpe) || "period end"}
+                    {(() => {
+                      const d = daysLeft(endAtSec);
+                      return typeof d === "number" ? `${d} day${d === 1 ? "" : "s"}` : "—";
+                    })()}
                   </span>
                   . You’ll keep access until then.
                 </div>
@@ -179,7 +216,9 @@ const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription }) => {
             <div className="rounded-xl border border-gray-200 p-4 flex flex-col gap-3">
               <button
                 type="button"
-                onClick={() => { setShowDelete(true); }}
+                onClick={() => {
+                  setShowDelete(true);
+                }}
                 className="rounded-xl px-4 py-2 bg-red-600 text-white hover:bg-red-700"
               >
                 Delete Account
