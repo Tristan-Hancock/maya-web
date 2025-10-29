@@ -67,7 +67,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const handleSignOut = async () => {
     try {
       // ✅ Hard reset all local data to ensure no stale threads or tokens remain
-      console.log("[signout] clearing local + session storage…");
+      // console.log("[signout] clearing local + session storage…");
   
       try {
         // Remove all app-specific keys
@@ -87,7 +87,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       // ✅ Amplify / Cognito sign-out
       await doSignOut();
   
-      console.log("[signout] complete — all caches cleared, user signed out.");
+      // console.log("[signout] complete — all caches cleared, user signed out.");
     } catch (e) {
       console.error("[signout] failed:", e);
     }

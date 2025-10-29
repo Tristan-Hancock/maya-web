@@ -77,5 +77,5 @@ app.post('/api/chat', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`API listening on http://localhost:${PORT}`);
+  // console.log(`API listening on http://localhost:${PORT}`);
 });

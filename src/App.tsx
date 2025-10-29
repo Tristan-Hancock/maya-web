@@ -109,7 +109,7 @@ const App: React.FC = () => {
         let displayMessage = `Sorry, I hit an error: ${errMsg}`;
       
         if (status === 402) {
-          console.log(reason);
+          // console.log(reason);
           if (reason === "thread_limit_reached") {
             // User tried to START a new chat but free thread cap is reached
             displayMessage =
