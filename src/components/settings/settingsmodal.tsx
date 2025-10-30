@@ -9,18 +9,18 @@ type Props = {
   onOpenSubscription?: () => void;
 };
 
-function fmtDate(sec?: number | null) {
-  if (!sec) return "";
-  try {
-    return new Date(sec * 1000).toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  } catch {
-    return "";
-  }
-}
+// function fmtDate(sec?: number | null) {
+//   if (!sec) return "";
+//   try {
+//     return new Date(sec * 1000).toLocaleDateString(undefined, {
+//       year: "numeric",
+//       month: "short",
+//       day: "numeric",
+//     });
+//   } catch {
+//     return "";
+//   }
+// }
 
 // Robust days-left helper (handles strings / nulls)
 function daysLeft(sec?: number | string | null) {
