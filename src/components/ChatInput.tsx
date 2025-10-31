@@ -1,3 +1,5 @@
+// Replace the component with this version
+
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import PlusIcon from './icons/PlusIcon';
 import MicIcon from './icons/MicIcon';
@@ -9,6 +11,7 @@ interface ChatInputProps {
   onSend: (message: string) => void;
   isLoading: boolean;
   suggestions?: string[];
+  onSendFile?: (file: File, userMessage: string) => void;
 }
 
 const DEFAULT_SUGGESTIONS = [
@@ -20,6 +23,14 @@ const DEFAULT_SUGGESTIONS = [
 ];
 
 const FIXED_QUESTION = "im afraid i might be pregnant";
+
+const ALLOWED_MIME = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain",
+]);
+const MAX_SIZE_MB = 10;
 
 function sampleTwo(pool: string[]): [string, string] {
   const p = [...pool];
@@ -38,30 +49,64 @@ const ChatInput: React.FC<ChatInputProps> = ({
   onSend,
   isLoading,
   suggestions = DEFAULT_SUGGESTIONS,
+  onSendFile,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [showPremiumPopup, setShowPremiumPopup] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [showPremiumPopup, setShowPremiumPopup] = useState(false); // still used for voice only
+  const [file, setFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string>("");
 
-  // Build pool excluding the fixed question, de-dup, and fall back to defaults if too small.
   const pool = useMemo(() => {
-    const set = new Set([
-      ...DEFAULT_SUGGESTIONS,
-      ...suggestions,
-    ].filter(s => s.trim().toLowerCase() !== FIXED_QUESTION));
+    const set = new Set(
+      [...DEFAULT_SUGGESTIONS, ...suggestions].filter(
+        (s) => s.trim().toLowerCase() !== FIXED_QUESTION
+      )
+    );
     return Array.from(set);
   }, [suggestions]);
 
   const [[leftSug, rightSug], setTwo] = useState<[string, string]>(() => sampleTwo(pool));
+  useEffect(() => { setTwo(sampleTwo(pool)); }, [pool]);
 
-  useEffect(() => {
-    setTwo(sampleTwo(pool));
-    // re-pick whenever the pool changes (e.g., prop update)
-  }, [pool]);
+  function openPicker() {
+    fileRef.current?.click(); // no premium popup for uploads
+  }
+
+  function validateAndStage(f: File | undefined) {
+    setFileError("");
+    if (!f) return;
+    if (!ALLOWED_MIME.has(f.type)) {
+      setFileError("Only PDF, DOC, DOCX, or TXT.");
+      return;
+    }
+    if (f.size > MAX_SIZE_MB * 1024 * 1024) {
+      setFileError(`Max ${MAX_SIZE_MB} MB.`);
+      return;
+    }
+    setFile(f);
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    validateAndStage(f);
+    e.currentTarget.value = "";
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (input.trim() && !isLoading) {
-      onSend(input);
+    if (isLoading) return;
+    const text = input.trim();
+
+    if (file && onSendFile) {
+      onSendFile(file, text);
+      setFile(null);
+      setInput("");
+      return;
+    }
+
+    if (text) {
+      onSend(text);
       setInput('');
     }
   };
@@ -71,9 +116,10 @@ const ChatInput: React.FC<ChatInputProps> = ({
     requestAnimationFrame(() => inputRef.current?.focus());
   };
 
+  const canSend = !isLoading && (input.trim().length > 0 || !!file);
+
   return (
     <>
-      {/* Three pills: left (random), middle (fixed), right (random) */}
       <div className="w-full mb-2 overflow-x-auto no-scrollbar" aria-label="Quick suggestions" role="list">
         <div className="flex gap-2 pr-1">
           {[leftSug, FIXED_QUESTION, rightSug].map((s, i) => (
@@ -90,15 +136,32 @@ const ChatInput: React.FC<ChatInputProps> = ({
         </div>
       </div>
 
+      {file && (
+        <div className="mb-2 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm bg-white">
+          <span className="truncate max-w-[240px]">{file.name}</span>
+          <button
+            type="button"
+            className="text-gray-500 hover:text-gray-900"
+            aria-label="Remove file"
+            onClick={() => setFile(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
+      {fileError && (
+        <div className="mb-2 text-xs text-red-600" role="alert">{fileError}</div>
+      )}
+
       <form
         onSubmit={handleSubmit}
         className="bg-white/80 backdrop-blur-md flex flex-nowrap items-center p-2 rounded-full shadow-lg border border-gray-200/80 w-full"
       >
         <button
           type="button"
-          onClick={() => setShowPremiumPopup(true)}
+          onClick={openPicker}
           className="shrink-0 p-2 text-gray-500 rounded-full transition-colors hover:bg-gray-200 hover:opacity-50"
-          aria-label="Add attachment (Premium)"
+          aria-label="Add attachment"
         >
           <PlusIcon />
         </button>
@@ -108,14 +171,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask anything..."
+          placeholder={file ? "Add context for your document…" : "Ask anything..."}
           className="flex-1 min-w-0 bg-transparent focus:outline-none px-4 text-gray-800 placeholder-gray-500"
           disabled={isLoading}
         />
 
         <button
           type="button"
-          onClick={() => setShowPremiumPopup(true)}
+          onClick={() => setShowPremiumPopup(true)} // voice remains premium-gated
           className="shrink-0 p-2 text-gray-500 rounded-full transition-colors hover:bg-gray-200 hover:opacity-50"
           aria-label="Voice input (Premium)"
         >
@@ -124,12 +187,20 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
         <button
           type="submit"
-          disabled={isLoading || !input.trim()}
+          disabled={!canSend}
           className="shrink-0 p-2 rounded-full text-white bg-[#6B66FF] hover:bg-[#5853e6] disabled:bg-gray-300 disabled:cursor-not-allowed transition-all"
           aria-label="Send message"
         >
           <SendIcon />
         </button>
+
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+          hidden
+          onChange={handleFileChange}
+        />
       </form>
 
       {showPremiumPopup && (

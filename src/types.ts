@@ -3,6 +3,8 @@
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
+  attachmentName?: string | null; // ← add this
+
 }
 
 
