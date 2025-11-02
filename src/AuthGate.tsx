@@ -111,6 +111,8 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         </AuthShell>
       );
     }
+
+    
     return (
       <div className="w-full h-full relative">
         {/* Sidebar — desktop slide + mobile overlay */}
@@ -178,11 +180,11 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     
         {/* Fixed top bar */}
         <div
-          className={`fixed top-0 right-0 z-30 h-14 bg-white/95 backdrop-blur border-b border-gray-200 transition-[left] duration-200 ${
+          className={`fixed top-0 right-0 z-30 h-14 bg-transparent  transition-[left] duration-200 ${
             leftOpen ? "lg:left-72 left-0" : "left-0"
           }`}
         >
-          <div className="h-full max-w-6xl mx-auto px-4 flex items-center justify-between">
+          <div className="h-full max-w-6xl mx-auto flex items-center justify-between">
             <button
               type="button"
               aria-label="Open sidebar"

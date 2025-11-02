@@ -6,7 +6,7 @@ import WelcomeScreen from "./components/WelcomeScreen";
 import ChatInput from "./components/ChatInput";
 import ChatMessageDisplay from "./components/ChatMessage";
 import { useApp } from "./appContext";
-
+import { useRealtimeCall } from "./services/useRealtimeCall";
 // Extend the local shape to allow an optional filename chip without
 // forcing a global types change.
 type ChatItem = ChatMessage & { attachmentName?: string | null };
@@ -18,6 +18,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [, setError] = useState<string | null>(null);
   const [threadLoading, setThreadLoading] = useState(false);
+  const voice = useRealtimeCall();
 
   // load history whenever activeThread changes
   useEffect(() => {
@@ -209,8 +210,26 @@ const App: React.FC = () => {
     [isLoading, activeThread, messages.length, setActiveThread]
   );
 
+  const handleStartCall = useCallback(async () => {
+    await voice.start({
+      onRemoteAudio: (el) => {
+        // Attach the remote audio element to a hidden/root container
+        const root = document.getElementById("voice-audio-root");
+        if (root) {
+          root.innerHTML = "";
+          root.appendChild(el);
+        }
+      },
+    });
+  }, [voice]);
+
+  const handleEndCall = useCallback(async () => {
+    await voice.stop(false); // settles minutes with backend
+  }, [voice]);
   return (
     <div className="flex flex-col min-h-screen text-[#191D38] bg-[repeating-linear-gradient(to_bottom,#EAEBFF_0%,#FFFFFF_40%,#EAEBFF_80%)]">
+        {/* hidden container to host the remote <audio> element */}
+        <div id="voice-audio-root" className="hidden" aria-hidden="true" />
       {/* messages area with overlay */}
       <div className="relative flex-1">
         {threadLoading && (
@@ -258,7 +277,12 @@ const App: React.FC = () => {
             onSend={handleSendMessage}
             onSendFile={handleSendFile}   // ← wire uploads
             isLoading={isLoading}
+            onStartCall={handleStartCall} 
+
+            onEndCall={handleEndCall}      
+
           />
+        
           <p className="text-center text-xs text-gray-500 mt-3">
             Maya can make mistakes. Consider checking important information.
           </p>
