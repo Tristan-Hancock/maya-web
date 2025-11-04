@@ -7,6 +7,8 @@ import ChatInput from "./components/ChatInput";
 import ChatMessageDisplay from "./components/ChatMessage";
 import { useApp } from "./appContext";
 import { useRealtimeCall } from "./services/useRealtimeCall";
+import VoiceGateModal from "./components/voicemodel";
+import SubscriptionPage from "./components/subscriptions/Subscription";
 // Extend the local shape to allow an optional filename chip without
 // forcing a global types change.
 type ChatItem = ChatMessage & { attachmentName?: string | null };
@@ -19,6 +21,8 @@ const App: React.FC = () => {
   const [, setError] = useState<string | null>(null);
   const [threadLoading, setThreadLoading] = useState(false);
   const voice = useRealtimeCall();
+  const [voiceGate, setVoiceGate] = useState<Parameters<typeof VoiceGateModal>[0]["gate"]>(null);
+  const [showSub, setShowSub] = useState(false);
 
   // load history whenever activeThread changes
   useEffect(() => {
@@ -211,21 +215,52 @@ const App: React.FC = () => {
   );
 
   const handleStartCall = useCallback(async () => {
-    await voice.start({
-      onRemoteAudio: (el) => {
-        // Attach the remote audio element to a hidden/root container
-        const root = document.getElementById("voice-audio-root");
-        if (root) {
-          root.innerHTML = "";
-          root.appendChild(el);
-        }
-      },
-    });
+    try {
+      await voice.start({
+        onRemoteAudio: (el) => {
+          const root = document.getElementById("voice-audio-root");
+          if (root) {
+            root.innerHTML = "";
+            root.appendChild(el);
+          }
+        },
+      });
+    } catch (e: any) {
+      // show the gate modal only on error (e.g., 402 payment_required)
+      setVoiceGate(buildVoiceGate(e));
+      try { await voice.stop(true); } catch {}
+    }
   }, [voice]);
+  
 
   const handleEndCall = useCallback(async () => {
     await voice.stop(false); // settles minutes with backend
   }, [voice]);
+
+//handling the errors here 
+  function buildVoiceGate(err: any) {
+    // createVoiceSession throws with { status, kind, reason, cap, used, wait_ms }
+    if (err?.status === 402 && (err?.kind === "voice_cap" || err?.reason)) {
+      const reason = String(err.reason || "");
+      if (reason === "cooldown_active") {
+        return { kind: "cooldown_active" as const, waitMs: Number(err.wait_ms || 0) };
+      }
+      if (reason === "minutes_exhausted") {
+        return { kind: "minutes_exhausted" as const, used: err.used, cap: err.cap };
+      }
+      if (reason === "voice_disabled") return { kind: "voice_disabled" as const };
+      if (reason === "concurrent_call") return { kind: "concurrent_call" as const };
+      return { kind: "generic" as const, message: "Upgrade to use voice or try again later." };
+    }
+    // Non-402
+    return { kind: "generic" as const, message: err?.message || "Voice is unavailable right now." };
+  }
+   // simple upgrade action
+   const goUpgrade = () => {
+    setVoiceGate(null);
+    setShowSub(true);     // open pricing modal
+  };
+  
   return (
     <div className="flex flex-col min-h-screen text-[#191D38] bg-[repeating-linear-gradient(to_bottom,#EAEBFF_0%,#FFFFFF_40%,#EAEBFF_80%)]">
         {/* hidden container to host the remote <audio> element */}
@@ -288,7 +323,18 @@ const App: React.FC = () => {
           </p>
         </div>
       </div>
+      <VoiceGateModal
+  gate={voiceGate}
+  onClose={() => setVoiceGate(null)}
+  onUpgrade={goUpgrade}
+/>
+
+{showSub && (
+  <SubscriptionPage onClose={() => setShowSub(false)} />
+)}
+
     </div>
+    
   );
 };
 
