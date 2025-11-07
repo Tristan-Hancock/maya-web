@@ -1,3 +1,4 @@
+//ChatInput.tsx
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import PlusIcon from './icons/PlusIcon';
 import CallIcon from './icons/callIcon';
@@ -11,9 +12,16 @@ interface ChatInputProps {
   suggestions?: string[];
   onSendFile?: (file: File, userMessage: string) => void;
 
-  /** optional hooks you can wire later */
-  onStartCall?: () => Promise<void> | void;
+  // Voice flow hooks
+  onVoicePreflight?: () => Promise<{
+    client_secret: string;
+    session_deadline_ms?: number;
+    session_started_ms?: number;   // ← new
+  }>;
+  onStartCall?: (clientSecret: string, sessionDeadlineMs?: number) => Promise<void> | void; // ← accepts deadline
   onEndCall?: (elapsedSec: number) => Promise<void> | void;
+  onVoiceBlocked?: (err: any) => void;
+
 }
 
 const DEFAULT_SUGGESTIONS = [
@@ -58,8 +66,10 @@ const ChatInput: React.FC<ChatInputProps> = ({
   isLoading,
   suggestions = DEFAULT_SUGGESTIONS,
   onSendFile,
+  onVoicePreflight,
   onStartCall,
   onEndCall,
+  onVoiceBlocked,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -70,10 +80,20 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const [callActive, setCallActive] = useState(false);
   const [callSeconds, setCallSeconds] = useState(0);
 
+  // timer to auto-end call
+  const endTimerRef = useRef<number | null>(null);
+  const clearEndTimer = () => {
+    if (endTimerRef.current !== null) {
+      window.clearTimeout(endTimerRef.current);
+      endTimerRef.current = null;
+    }
+  };
+  useEffect(() => () => clearEndTimer(), []);
+
   useEffect(() => {
     if (!callActive) return;
-    const t = setInterval(() => setCallSeconds((s) => s + 1), 1000);
-    return () => clearInterval(t);
+    const t = window.setInterval(() => setCallSeconds((s) => s + 1), 1000);
+    return () => window.clearInterval(t);
   }, [callActive]);
 
   const pool = useMemo(() => {
@@ -135,30 +155,63 @@ const ChatInput: React.FC<ChatInputProps> = ({
     requestAnimationFrame(() => inputRef.current?.focus());
   };
 
-  const startCall = async () => {
-    if (callActive) return;
-    try {
-      // hook to mint client_secret later
-      await onStartCall?.();
-      setCallSeconds(0);
-      setCallActive(true);
-    } catch (e) {
-      console.warn("[voice] start failed:", (e as Error)?.message);
-    }
-  };
+  // Start call with preflight gating
+ // inside ChatInput component, replace startCall/endCall with this:
 
-  const endCall = async () => {
-    if (!callActive) return;
-    setCallActive(false);
-    // hook to finalize minutes later
-    try { await onEndCall?.(callSeconds); } catch {}
-  };
+const startCall = async () => {
+  if (callActive) return;
+  try {
+    if (!onVoicePreflight || !onStartCall) throw new Error("voice_not_wired");
+
+    console.log("[voice] preflight → server");
+    const { client_secret, session_deadline_ms, session_started_ms } = await onVoicePreflight();
+    console.log("[voice] preflight OK", { session_deadline_ms, session_started_ms: !!session_started_ms });
+
+    setCallSeconds(() => {
+      if (session_started_ms && session_started_ms < Date.now()) {
+        const secs = Math.max(0, Math.floor((Date.now() - session_started_ms) / 1000));
+        return secs;
+      }
+      return 0;
+    });
+
+    console.log("[voice] onStartCall with client_secret…");
+    await onStartCall(client_secret, session_deadline_ms);
+
+    setCallActive(true);
+    console.log("[voice] callActive=true");
+
+    clearEndTimer();
+    if (session_deadline_ms && session_deadline_ms > Date.now()) {
+      const ms = Math.max(0, session_deadline_ms - Date.now() - 1000);
+      endTimerRef.current = window.setTimeout(() => { endCall(); }, ms);
+      console.log("[voice] auto-end timer set (ms):", ms);
+    } else {
+      endTimerRef.current = window.setTimeout(() => endCall(), 50_000);
+      console.log("[voice] fallback auto-end timer set (50s)");
+    }
+  } catch (e: any) {
+    console.error("[voice] blocked/error:", e);
+    onVoiceBlocked?.(e);
+  }
+};
+
+const endCall = async () => {
+  if (!callActive) return;
+  clearEndTimer();
+  setCallActive(false);
+  const secs = callSeconds;
+  setCallSeconds(0);
+  console.log("[voice] ending call, elapsedSec:", secs);
+  try { await onEndCall?.(secs); } catch (e) { console.warn("[voice] endCall error:", e); }
+};
+
+  
 
   const canSend = !isLoading && !callActive && (input.trim().length > 0 || !!file);
 
   return (
     <>
-      {/* Suggestions (hidden while in call) */}
       {!callActive && (
         <div className="w-full mb-2 overflow-x-auto no-scrollbar" aria-label="Quick suggestions" role="list">
           <div className="flex gap-2 pr-1">
@@ -177,7 +230,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
         </div>
       )}
 
-      {/* File chip (also shown in call mode so users can cancel before sending) */}
       {file && !callActive && (
         <div className="mb-2 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm bg-white">
           <span className="truncate max-w-[240px]">{file.name}</span>
@@ -195,7 +247,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
         <div className="mb-2 text-xs text-red-600" role="alert">{fileError}</div>
       )}
 
-      {/* Input bar OR Call dock */}
       {!callActive ? (
         <form
           onSubmit={handleSubmit}
@@ -220,7 +271,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
             disabled={isLoading}
           />
 
-          {/* Call button replaces mic */}
           <button
             type="button"
             onClick={startCall}
@@ -248,7 +298,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
           />
         </form>
       ) : (
-        // Minimal "call dock" look inside the same area
         <div className="bg-white/90 backdrop-blur-md flex items-center justify-between p-3 rounded-2xl shadow-lg border border-gray-200/80 w-full">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-[#6B66FF]/10 grid place-items-center">
@@ -261,7 +310,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* (Optional) a subtle animated indicator */}
             <div className="hidden sm:flex items-center gap-1 mr-2">
               <span className="w-1.5 h-3 rounded bg-gray-300 animate-[pulse_800ms_ease-in-out_infinite]" />
               <span className="w-1.5 h-4 rounded bg-gray-400 animate-[pulse_1000ms_ease-in-out_infinite]" />
@@ -284,3 +332,4 @@ const ChatInput: React.FC<ChatInputProps> = ({
 };
 
 export default ChatInput;
+

@@ -1,61 +1,207 @@
-// src/voice/useRealtimeCall.ts
+// src/services/useRealtimeCall.ts
 import { createVoiceSession, endVoiceSession } from "../services/openAIservice";
 
-type StartOpts = { onRemoteAudio?: (el: HTMLAudioElement) => void };
+type StartOpts = {
+  clientSecret?: string;
+  sessionDeadlineMs?: number;
+  onRemoteAudio?: (el: HTMLAudioElement, stream: MediaStream) => void;
+  outputDeviceId?: string; // optional audio sink
+};
 
 export function useRealtimeCall() {
   let pc: RTCPeerConnection | null = null;
+  let dc: RTCDataChannel | null = null;
   let localStream: MediaStream | null = null;
   let remoteAudioEl: HTMLAudioElement | null = null;
   let startedAt = 0;
+  let statsTimer: number | null = null;
 
   const getElapsedSec = () =>
     startedAt ? Math.max(0, Math.floor((Date.now() - startedAt) / 1000)) : 0;
 
-  async function start(opts: StartOpts = {}) {
-    // 1) Mint ephemeral client secret from your backend (also enforces limits)
-    const { client_secret } = await createVoiceSession(); // throws 402 with reason if blocked
-    startedAt = Date.now();
+  function speakOnce() {
+    if (!dc || dc.readyState !== "open") return;
+    const msg = {
+      type: "response.create",
+      response: {
+        model: "gpt-4o-realtime-preview",
+        modalities: ["audio"],
+        conversation: "default",
+        instructions: "Say a short hello, one sentence.",
+      },
+    };
+    try { dc.send(JSON.stringify(msg)); } catch (e) { console.warn("[voice] dc send error:", e); }
+  }
 
-    // 2) Build WebRTC peer connection
-    pc = new RTCPeerConnection();
+  function preferOpus(tx?: RTCRtpTransceiver | null) {
+    if (!tx || !RTCRtpSender.getCapabilities) return;
+    const caps = RTCRtpSender.getCapabilities("audio");
+    const opus = caps?.codecs?.find(c => /opus/i.test(c.mimeType));
+    if (!opus) return;
+    const others = (caps?.codecs || []).filter(c => c !== opus);
+    try { tx.setCodecPreferences([opus, ...others]); } catch {}
+  }
 
-    // 3) Remote audio sink
-    remoteAudioEl = new Audio();
-    remoteAudioEl.autoplay = true;
-    pc.ontrack = (event) => {
-      if (!remoteAudioEl) return;
-      const [stream] = event.streams;
-      remoteAudioEl.srcObject = stream;
-      opts.onRemoteAudio?.(remoteAudioEl);
+  function ensurePlaybackUnlocked() {
+    if (!remoteAudioEl) return;
+    const p = remoteAudioEl.play();
+    if (p && typeof (p as any).then === "function") {
+      p.catch(() => {
+        const resume = () => {
+          remoteAudioEl?.play().catch(() => {});
+          window.removeEventListener("click", resume);
+        };
+        window.addEventListener("click", resume, { once: true });
+      });
+    }
+  }
+
+  function startStatsWatch() {
+    if (!pc) return;
+    let lastBytes = 0;
+    let consecutiveSilent = 0;
+
+    const tick = async () => {
+      if (!pc) return;
+      const recv = pc.getReceivers().find(r => r.track && r.track.kind === "audio");
+      if (!recv) { statsTimer = window.setTimeout(tick, 1000); return; }
+
+      try {
+        const report = await recv.getStats();
+        let bytesNow = 0;
+        report.forEach(s => {
+          if (s.type === "inbound-rtp" && (s as any).kind === "audio") {
+            bytesNow += Number((s as any).bytesReceived || 0);
+          }
+        });
+        const delta = Math.max(0, bytesNow - lastBytes);
+        lastBytes = bytesNow;
+        if (delta > 0) {
+          consecutiveSilent = 0;
+          // keep the element playing
+          ensurePlaybackUnlocked();
+        } else {
+          consecutiveSilent += 1;
+          // If 3s of silence after connected, nudge the model once
+          if (consecutiveSilent === 3) {
+            console.log("[voice] silence detected, nudging response.create");
+            speakOnce();
+            ensurePlaybackUnlocked();
+          }
+        }
+        // Debug line if you want to see deltas:
+        // console.log("[voice] inbound bytes delta:", delta);
+      } catch {}
+      statsTimer = window.setTimeout(tick, 1000);
     };
 
-    // 4) Local mic
-    localStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
+    statsTimer = window.setTimeout(tick, 1000);
+  }
+
+  async function start(opts: StartOpts = {}) {
+    // 1) Ephemeral secret
+    let secret = opts.clientSecret;
+    if (!secret) {
+      const s = await createVoiceSession();
+      secret = s.client_secret;
+    }
+    startedAt = Date.now();
+
+    // 2) PeerConnection
+    pc = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      bundlePolicy: "max-bundle",
     });
-    localStream.getTracks().forEach((t) => pc!.addTrack(t, localStream!));
 
-    // 5) We both send and receive audio
-    pc.addTransceiver("audio", { direction: "sendrecv" });
+    pc.oniceconnectionstatechange = () => console.log("[voice] ice:", pc?.iceConnectionState);
+    pc.onconnectionstatechange = () => {
+      console.log("[voice] pc:", pc?.connectionState);
+      if (pc?.connectionState === "connected") {
+        // Let the remote transceiver come up, then cue speech
+        setTimeout(() => {
+          speakOnce();
+          ensurePlaybackUnlocked();
+        }, 250);
+      }
+    };
 
-    // 6) Create offer -> send to OpenAI Realtime -> set answer
+    // 3) DataChannel BEFORE offer
+    dc = pc.createDataChannel("oai-events");
+    dc.onopen = () => {
+      console.log("[voice] datachannel open");
+      // Early cue. A later cue will also run when pc==connected.
+      speakOnce();
+    };
+    dc.onmessage = (e) => {
+      try {
+        const ev = JSON.parse(e.data);
+        if (ev?.type) console.debug("[oai]", ev.type);
+      } catch {}
+    };
+    dc.onerror = (e) => console.warn("[voice] dc error", e);
+    dc.onclose = () => console.log("[voice] datachannel closed");
+
+    // 4) Remote audio element
+    remoteAudioEl = new Audio();
+    remoteAudioEl.autoplay = true;
+    remoteAudioEl.muted = false;
+    remoteAudioEl.preload = "auto";
+    remoteAudioEl.style.display = "none";
+    try { remoteAudioEl.setAttribute("playsinline", "true"); } catch {}
+    document.body.appendChild(remoteAudioEl);
+
+    // Optional sink routing
+    if (opts.outputDeviceId && (remoteAudioEl as any).setSinkId) {
+      try { await (remoteAudioEl as any).setSinkId(opts.outputDeviceId); } catch {}
+    }
+
+    pc.ontrack = (event) => {
+      const [stream] = event.streams;
+      if (!remoteAudioEl) return;
+      remoteAudioEl.srcObject = stream;
+      ensurePlaybackUnlocked();
+      opts.onRemoteAudio?.(remoteAudioEl, stream);
+      console.log("[voice] remote track attached");
+    };
+
+    // 5) Mic first, then add track
+    localStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+    localStream.getTracks().forEach(t => pc!.addTrack(t, localStream!));
+
+    // 6) Bidirectional audio with Opus preference
+    const tx = pc.addTransceiver("audio", { direction: "sendrecv" });
+    preferOpus(tx);
+
+    // 7) Offer → wait ICE → POST → set answer
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
 
-    const model = import.meta.env.VITE_OPENAI_REALTIME_MODEL || "gpt-4o-realtime-preview";
+    await new Promise<void>((resolve) => {
+      if (!pc) return resolve();
+      if (pc.iceGatheringState === "complete") return resolve();
+      const onchg = () => {
+        if (pc && pc.iceGatheringState === "complete") {
+          pc.removeEventListener("icegatheringstatechange", onchg);
+          resolve();
+        }
+      };
+      pc.addEventListener("icegatheringstatechange", onchg);
+      setTimeout(resolve, 1500);
+    });
+
+    const model = (import.meta as any).env.VITE_OPENAI_REALTIME_MODEL || "gpt-4o-realtime-preview";
+    const sdp = pc.localDescription?.sdp || offer.sdp || "";
+
     const resp = await fetch(`https://api.openai.com/v1/realtime?model=${encodeURIComponent(model)}`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${client_secret}`,
+        Authorization: `Bearer ${secret}`,
         "Content-Type": "application/sdp",
         "OpenAI-Beta": "realtime=v1",
       },
-      body: offer.sdp,
+      body: sdp,
     });
 
     if (!resp.ok) {
@@ -66,19 +212,33 @@ export function useRealtimeCall() {
 
     const answer = await resp.text();
     await pc.setRemoteDescription({ type: "answer", sdp: answer });
+    console.log("[voice] remote description set; wait for connection and audio");
+
+    // 8) Start RTP stats watcher to detect silence and auto-nudge
+    startStatsWatch();
   }
 
   async function stop(isError = false) {
-    // Close PC + mic
+    if (statsTimer) { clearTimeout(statsTimer); statsTimer = null; }
+
+    try { dc?.close(); } catch {}
+    dc = null;
+
     try { pc?.getSenders().forEach(s => s.track?.stop()); } catch {}
     try { localStream?.getTracks().forEach(t => t.stop()); } catch {}
     try { pc?.close(); } catch {}
     pc = null;
 
+    if (remoteAudioEl) {
+      try { remoteAudioEl.pause(); } catch {}
+      try { remoteAudioEl.srcObject = null; } catch {}
+      try { document.body.removeChild(remoteAudioEl); } catch {}
+    }
+    remoteAudioEl = null;
+
     const secs = getElapsedSec();
     startedAt = 0;
 
-    // Tell backend to settle minutes (unless we errored before starting)
     if (!isError && secs > 0) {
       try { await endVoiceSession(secs); } catch {}
     }

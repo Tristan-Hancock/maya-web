@@ -118,16 +118,21 @@ export async function fetchThreadHistory(
 }
 
 // ========================================
-// Voice (Realtime) — new
+// Voice (Realtime) → /test/realtime/session, /test/realtime/end
 // ========================================
 
 export type VoiceSession = {
   client_secret: string;
   session_deadline_ms: number;
-  max_minutes: number;
+  session_started_ms?: number;
+  cap_minutes?: number;
+  per_call_cap_minutes?: number;
+  wait_minutes?: number;
+  used_minutes?: number;
+  model?: string;
+  vad?: string;
 };
 
-/** Start a voice session (mint OpenAI Realtime client_secret) */
 export async function createVoiceSession(): Promise<VoiceSession> {
   const headers = await authHeaderJSON();
   const res = await fetch(`${API_BASE}/test/realtime/session`, {
@@ -136,33 +141,34 @@ export async function createVoiceSession(): Promise<VoiceSession> {
     body: "{}",
   });
   const data: any = await res.json().catch(() => ({}));
-
   if (!res.ok) {
-    // 402 payloads include { error:"payment_required", kind:"voice_cap", reason:"..." , ... }
     const err = new Error(data?.error || data?.reason || `http_${res.status}`) as any;
     err.status = res.status;
     err.kind = data?.kind;
     err.reason = data?.reason;
     err.cap = data?.cap;
     err.used = data?.used;
-    err.wait_ms = data?.wait_ms;
     throw err;
   }
-
   return {
-    client_secret: data.client_secret,
-    session_deadline_ms: data.session_deadline_ms,
-    max_minutes: data.max_minutes,
+    client_secret: String(data.client_secret),
+    session_deadline_ms: Number.isFinite(data.session_deadline_ms) ? Number(data.session_deadline_ms) : 0,
+    session_started_ms: Number.isFinite(data.session_started_ms) ? Number(data.session_started_ms) : undefined,
+    cap_minutes: Number(data.cap_minutes ?? 0),
+    per_call_cap_minutes: Number(data.per_call_cap_minutes ?? 0),
+    wait_minutes: Number(data.wait_minutes ?? 0),
+    used_minutes: Number(data.used_minutes ?? 0),
+    model: data.model,
+    vad: data.vad,
   };
 }
 
-/** End a voice session and settle minutes (ceil to minute, capped by session max) */
-export async function endVoiceSession(seconds: number): Promise<{ credited_minutes?: number }> {
+export async function endVoiceSession(seconds: number): Promise<{ billed_seconds?: number; total_minutes_used?: number }> {
   const headers = await authHeaderJSON();
   const res = await fetch(`${API_BASE}/test/realtime/end`, {
     method: "POST",
     headers,
-    body: JSON.stringify({ seconds }),
+    body: JSON.stringify({ elapsedSec: seconds }),
   });
   const data: any = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -171,5 +177,9 @@ export async function endVoiceSession(seconds: number): Promise<{ credited_minut
     err.kind = data?.kind;
     throw err;
   }
-  return { credited_minutes: data?.credited_minutes };
+  return { billed_seconds: data?.billed_seconds, total_minutes_used: data?.total_minutes_used };
+}
+
+export async function voicePreflight(): Promise<VoiceSession> {
+  return createVoiceSession();
 }

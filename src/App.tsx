@@ -9,6 +9,7 @@ import { useApp } from "./appContext";
 import { useRealtimeCall } from "./services/useRealtimeCall";
 import VoiceGateModal from "./components/voicemodel";
 import SubscriptionPage from "./components/subscriptions/Subscription";
+import { createVoiceSession, endVoiceSession } from "./services/openAIservice";
 // Extend the local shape to allow an optional filename chip without
 // forcing a global types change.
 type ChatItem = ChatMessage & { attachmentName?: string | null };
@@ -23,7 +24,32 @@ const App: React.FC = () => {
   const voice = useRealtimeCall();
   const [voiceGate, setVoiceGate] = useState<Parameters<typeof VoiceGateModal>[0]["gate"]>(null);
   const [showSub, setShowSub] = useState(false);
-
+  const onVoicePreflight = async () => {
+    const { client_secret, session_deadline_ms } = await createVoiceSession();
+    return { client_secret, session_deadline_ms };
+  };
+  const onStartCallWithSecret = async (clientSecret: string, sessionDeadlineMs?: number) => {
+    await voice.start({
+      clientSecret,
+      sessionDeadlineMs,
+      onRemoteAudio: (el) => {
+        const root = document.getElementById("voice-audio-root");
+        if (root) { root.innerHTML = ""; root.appendChild(el); }
+      },
+    });
+  };
+  const onEndCallSettle = async (elapsedSec: number) => {
+    try { await endVoiceSession(elapsedSec); } catch {}
+    await voice.stop(undefined);
+  };
+  
+  const onVoiceBlocked = (err: any) => {
+    if (err?.message === "voice_not_wired") {
+      console.warn("[voice] ChatInput not wired correctly");
+      return;
+    }
+    setVoiceGate(buildVoiceGate(err));
+  };
   // load history whenever activeThread changes
   useEffect(() => {
     (async () => {
@@ -214,28 +240,11 @@ const App: React.FC = () => {
     [isLoading, activeThread, messages.length, setActiveThread]
   );
 
-  const handleStartCall = useCallback(async () => {
-    try {
-      await voice.start({
-        onRemoteAudio: (el) => {
-          const root = document.getElementById("voice-audio-root");
-          if (root) {
-            root.innerHTML = "";
-            root.appendChild(el);
-          }
-        },
-      });
-    } catch (e: any) {
-      // show the gate modal only on error (e.g., 402 payment_required)
-      setVoiceGate(buildVoiceGate(e));
-      try { await voice.stop(true); } catch {}
-    }
-  }, [voice]);
-  
 
-  const handleEndCall = useCallback(async () => {
-    await voice.stop(false); // settles minutes with backend
-  }, [voice]);
+
+
+
+
 
 //handling the errors here 
   function buildVoiceGate(err: any) {
@@ -306,18 +315,17 @@ const App: React.FC = () => {
       {/* input */}
       <div className="px-4 pb-4 md:pb-8 w-full sticky bottom-0 bg-gradient-to-t from-white via-white/90 to-transparent">
         <div className="max-w-3xl mx-auto">
-          <ChatInput
-            input={input}
-            setInput={setInput}
-            onSend={handleSendMessage}
-            onSendFile={handleSendFile}   // ← wire uploads
-            isLoading={isLoading}
-            onStartCall={handleStartCall} 
-
-            onEndCall={handleEndCall}      
-
-          />
-        
+       <ChatInput
+  input={input}
+  setInput={setInput}
+  onSend={handleSendMessage}
+  onSendFile={handleSendFile}
+  isLoading={isLoading}
+  onVoicePreflight={onVoicePreflight}
+  onStartCall={onStartCallWithSecret}
+  onEndCall={onEndCallSettle}
+  onVoiceBlocked={onVoiceBlocked}
+/>
           <p className="text-center text-xs text-gray-500 mt-3">
             Maya can make mistakes. Consider checking important information.
           </p>
@@ -339,3 +347,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+
