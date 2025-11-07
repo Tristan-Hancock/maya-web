@@ -273,7 +273,9 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col min-h-screen text-[#191D38] bg-[repeating-linear-gradient(to_bottom,#EAEBFF_0%,#FFFFFF_40%,#EAEBFF_80%)]">
         {/* hidden container to host the remote <audio> element */}
-        <div id="voice-audio-root" className="hidden" aria-hidden="true" />
+        {/* was hidden */}
+<div id="voice-audio-root" className="fixed w-0 h-0 overflow-hidden opacity-0 pointer-events-none" aria-hidden="true" />
+
       {/* messages area with overlay */}
       <div className="relative flex-1">
         {threadLoading && (

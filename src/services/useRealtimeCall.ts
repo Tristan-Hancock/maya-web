@@ -24,22 +24,15 @@ export function useRealtimeCall() {
     const msg = {
       type: "response.create",
       response: {
-        model: "gpt-4o-realtime-preview",
-        modalities: ["audio"],
         conversation: "default",
         instructions: "Say a short hello, one sentence.",
       },
     };
-    try { dc.send(JSON.stringify(msg)); } catch (e) { console.warn("[voice] dc send error:", e); }
-  }
-
-  function preferOpus(tx?: RTCRtpTransceiver | null) {
-    if (!tx || !RTCRtpSender.getCapabilities) return;
-    const caps = RTCRtpSender.getCapabilities("audio");
-    const opus = caps?.codecs?.find(c => /opus/i.test(c.mimeType));
-    if (!opus) return;
-    const others = (caps?.codecs || []).filter(c => c !== opus);
-    try { tx.setCodecPreferences([opus, ...others]); } catch {}
+    try {
+      dc.send(JSON.stringify(msg));
+    } catch (e) {
+      console.warn("[voice] dc send error:", e);
+    }
   }
 
   function ensurePlaybackUnlocked() {
@@ -63,34 +56,35 @@ export function useRealtimeCall() {
 
     const tick = async () => {
       if (!pc) return;
-      const recv = pc.getReceivers().find(r => r.track && r.track.kind === "audio");
-      if (!recv) { statsTimer = window.setTimeout(tick, 1000); return; }
+      const recv = pc.getReceivers().find((r) => r.track && r.track.kind === "audio");
+      if (!recv) {
+        statsTimer = window.setTimeout(tick, 1000);
+        return;
+      }
 
       try {
         const report = await recv.getStats();
         let bytesNow = 0;
-        report.forEach(s => {
+        report.forEach((s) => {
           if (s.type === "inbound-rtp" && (s as any).kind === "audio") {
             bytesNow += Number((s as any).bytesReceived || 0);
           }
         });
         const delta = Math.max(0, bytesNow - lastBytes);
         lastBytes = bytesNow;
+
         if (delta > 0) {
           consecutiveSilent = 0;
-          // keep the element playing
           ensurePlaybackUnlocked();
+          console.log("[voice] inbound audio bytesΔ:", delta);
         } else {
           consecutiveSilent += 1;
-          // If 3s of silence after connected, nudge the model once
           if (consecutiveSilent === 3) {
             console.log("[voice] silence detected, nudging response.create");
             speakOnce();
             ensurePlaybackUnlocked();
           }
         }
-        // Debug line if you want to see deltas:
-        // console.log("[voice] inbound bytes delta:", delta);
       } catch {}
       statsTimer = window.setTimeout(tick, 1000);
     };
@@ -113,11 +107,11 @@ export function useRealtimeCall() {
       bundlePolicy: "max-bundle",
     });
 
-    pc.oniceconnectionstatechange = () => console.log("[voice] ice:", pc?.iceConnectionState);
+    pc.oniceconnectionstatechange = () =>
+      console.log("[voice] ice:", pc?.iceConnectionState);
     pc.onconnectionstatechange = () => {
       console.log("[voice] pc:", pc?.connectionState);
       if (pc?.connectionState === "connected") {
-        // Let the remote transceiver come up, then cue speech
         setTimeout(() => {
           speakOnce();
           ensurePlaybackUnlocked();
@@ -129,7 +123,6 @@ export function useRealtimeCall() {
     dc = pc.createDataChannel("oai-events");
     dc.onopen = () => {
       console.log("[voice] datachannel open");
-      // Early cue. A later cue will also run when pc==connected.
       speakOnce();
     };
     dc.onmessage = (e) => {
@@ -141,18 +134,20 @@ export function useRealtimeCall() {
     dc.onerror = (e) => console.warn("[voice] dc error", e);
     dc.onclose = () => console.log("[voice] datachannel closed");
 
-    // 4) Remote audio element
+    // 4) Remote audio element (append once)
     remoteAudioEl = new Audio();
     remoteAudioEl.autoplay = true;
     remoteAudioEl.muted = false;
     remoteAudioEl.preload = "auto";
-    remoteAudioEl.style.display = "none";
-    try { remoteAudioEl.setAttribute("playsinline", "true"); } catch {}
-    document.body.appendChild(remoteAudioEl);
+    remoteAudioEl.setAttribute("playsinline", "true");
+    const host = document.getElementById("voice-audio-root");
+    (host ?? document.body).appendChild(remoteAudioEl);
 
     // Optional sink routing
     if (opts.outputDeviceId && (remoteAudioEl as any).setSinkId) {
-      try { await (remoteAudioEl as any).setSinkId(opts.outputDeviceId); } catch {}
+      try {
+        await (remoteAudioEl as any).setSinkId(opts.outputDeviceId);
+      } catch {}
     }
 
     pc.ontrack = (event) => {
@@ -164,15 +159,29 @@ export function useRealtimeCall() {
       console.log("[voice] remote track attached");
     };
 
-    // 5) Mic first, then add track
-    localStream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    // 5) Mic
+    const mic = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
     });
-    localStream.getTracks().forEach(t => pc!.addTrack(t, localStream!));
+    localStream = mic;
 
-    // 6) Bidirectional audio with Opus preference
+    // 6) Single bidirectional audio m-line, bind mic
     const tx = pc.addTransceiver("audio", { direction: "sendrecv" });
-    preferOpus(tx);
+    await tx.sender.replaceTrack(mic.getAudioTracks()[0]);
+
+    // Prefer Opus if supported
+    try {
+      const caps = RTCRtpSender.getCapabilities("audio");
+      const opus = caps?.codecs?.find((c) => /opus/i.test(c.mimeType));
+      if (opus) {
+        const others = (caps?.codecs || []).filter((c) => c !== opus);
+        tx.setCodecPreferences([opus, ...others]);
+      }
+    } catch {}
 
     // 7) Offer → wait ICE → POST → set answer
     const offer = await pc.createOffer();
@@ -191,18 +200,23 @@ export function useRealtimeCall() {
       setTimeout(resolve, 1500);
     });
 
-    const model = (import.meta as any).env.VITE_OPENAI_REALTIME_MODEL || "gpt-4o-realtime-preview";
+    const model =
+      (import.meta as any).env.VITE_OPENAI_REALTIME_MODEL ||
+      "gpt-4o-realtime-preview";
     const sdp = pc.localDescription?.sdp || offer.sdp || "";
 
-    const resp = await fetch(`https://api.openai.com/v1/realtime?model=${encodeURIComponent(model)}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${secret}`,
-        "Content-Type": "application/sdp",
-        "OpenAI-Beta": "realtime=v1",
-      },
-      body: sdp,
-    });
+    const resp = await fetch(
+      `https://api.openai.com/v1/realtime?model=${encodeURIComponent(model)}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${secret}`,
+          "Content-Type": "application/sdp",
+          "OpenAI-Beta": "realtime=v1",
+        },
+        body: sdp,
+      }
+    );
 
     if (!resp.ok) {
       await stop(true);
@@ -214,25 +228,42 @@ export function useRealtimeCall() {
     await pc.setRemoteDescription({ type: "answer", sdp: answer });
     console.log("[voice] remote description set; wait for connection and audio");
 
-    // 8) Start RTP stats watcher to detect silence and auto-nudge
+    // 8) Stats watcher
     startStatsWatch();
   }
 
   async function stop(isError = false) {
-    if (statsTimer) { clearTimeout(statsTimer); statsTimer = null; }
+    if (statsTimer) {
+      clearTimeout(statsTimer);
+      statsTimer = null;
+    }
 
-    try { dc?.close(); } catch {}
+    try {
+      dc?.close();
+    } catch {}
     dc = null;
 
-    try { pc?.getSenders().forEach(s => s.track?.stop()); } catch {}
-    try { localStream?.getTracks().forEach(t => t.stop()); } catch {}
-    try { pc?.close(); } catch {}
+    try {
+      pc?.getSenders().forEach((s) => s.track?.stop());
+    } catch {}
+    try {
+      localStream?.getTracks().forEach((t) => t.stop());
+    } catch {}
+    try {
+      pc?.close();
+    } catch {}
     pc = null;
 
     if (remoteAudioEl) {
-      try { remoteAudioEl.pause(); } catch {}
-      try { remoteAudioEl.srcObject = null; } catch {}
-      try { document.body.removeChild(remoteAudioEl); } catch {}
+      try {
+        remoteAudioEl.pause();
+      } catch {}
+      try {
+        remoteAudioEl.srcObject = null;
+      } catch {}
+      try {
+        remoteAudioEl.parentElement?.removeChild(remoteAudioEl);
+      } catch {}
     }
     remoteAudioEl = null;
 
@@ -240,7 +271,9 @@ export function useRealtimeCall() {
     startedAt = 0;
 
     if (!isError && secs > 0) {
-      try { await endVoiceSession(secs); } catch {}
+      try {
+        await endVoiceSession(secs);
+      } catch {}
     }
   }
 
