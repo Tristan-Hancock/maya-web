@@ -1,21 +1,51 @@
 // PricingCard.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import type { Tier } from "../../types";
 import { CheckIcon } from "../../components/icons/sidebaricons";
-import { fetchAuthSession } from "aws-amplify/auth";
+
+type SubMeta = {
+  status: string; // "active" | "trialing" | "canceled" | "incomplete" | "none" ...
+  cancel_at: number; // epoch seconds or 0
+  current_period_end: number; // epoch seconds or 0
+  days_left: number | null;
+};
 
 type PricingCardProps = {
   tier: Tier;
-  onSubscribe?: (tier: Tier) => Promise<void> | void;
+  currentPlanCode: string;                          // ← new
+  subMeta: SubMeta;                                 // ← new
+  onSubscribe: (tier: Tier) => Promise<void> | void;
+  onManage?: () => void;
   onClose?: () => void;
 };
 
-const PricingCard: React.FC<PricingCardProps> = ({ tier, onSubscribe, onClose }) => {
+const PLAN_ORDER = ["free", "tier1", "tier2", "tier3", "enterprise"];
+
+function fmtDate(sec: number) {
+  if (!sec) return "";
+  return new Date(sec * 1000).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
+const PricingCard: React.FC<PricingCardProps> = ({ tier, currentPlanCode, subMeta, onSubscribe,  /* onManage, */ onClose }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
   const isPopular = !!tier.popular;
-  const ctaLabel = tier.ctaText;
+
+  const relation = useMemo(() => {
+    const a = PLAN_ORDER.indexOf(currentPlanCode);
+    const b = PLAN_ORDER.indexOf(tier.planCode);
+    if (a === -1 || b === -1) return "switch";
+    if (b === a) return "current";
+    return b > a ? "upgrade" : "downgrade";
+  }, [currentPlanCode, tier.planCode]);
+
+  const isCurrent = relation === "current" && (subMeta.status === "active" || subMeta.status === "trialing" || currentPlanCode === "free");
+
+  const ctaLabel = useMemo(() => {
+    if (isCurrent) return "Current Plan";
+    return relation === "upgrade" ? "Upgrade" : relation === "downgrade" ? "Downgrade" : tier.ctaText;
+  }, [isCurrent, relation, tier.ctaText]);
 
   const ctaClasses = `mt-8 block rounded-md py-2 px-3 text-center text-sm font-semibold leading-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 w-full transition-colors ${
     isPopular
@@ -23,59 +53,13 @@ const PricingCard: React.FC<PricingCardProps> = ({ tier, onSubscribe, onClose })
       : "text-indigo-600 ring-1 ring-inset ring-indigo-200 hover:ring-indigo-300 focus-visible:outline-indigo-600"
   }`;
 
-  async function defaultSubscribe() {
-    // Get Cognito token
-    const { tokens } = await fetchAuthSession();
-    const idToken = tokens?.idToken?.toString();
-    if (!idToken) throw new Error("Not authenticated");
-
-    // Stripe checkout endpoint (your new lambda)
-    const BASE =
-      (import.meta as any).env?.VITE_API_BILLING_STRIPE_STAGE 
-     
-
-    const url = `${BASE.replace(/\/$/, "")}/billing/stripe/checkout`;
-
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${idToken}`,
-      },
-      body: JSON.stringify({ plan_code: tier.planCode }), // e.g. "tier1"
-    });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const msg = data?.error || data?.reason || data?.message || `Request failed (${res.status})`;
-      throw new Error(msg);
-    }
-
-    // Redirect to hosted Stripe Checkout
-    if (data?.url) {
-      window.location.href = data.url;
-      return; // stop here; page navigates away
-    }
-
-    // If you ever switch to client-side redirect with stripe.js:
-    // const stripe = await loadStripe(data.publishable_key);
-    // await stripe?.redirectToCheckout({ sessionId: data.id });
-
-    throw new Error("Checkout URL missing from response");
-  }
-
   const handleSubscription = async () => {
+    if (isCurrent) return; // no-op
     try {
       setIsLoading(true);
       setIsSuccess(false);
-
-      if (onSubscribe) {
-        await onSubscribe(tier); // custom hook if you want
-      } else if (tier.planCode !== "free") {
-        await defaultSubscribe();
-      } else {
-        setIsSuccess(true);
-      }
+      await onSubscribe(tier);
+      if (tier.planCode === "free") setIsSuccess(true);
     } catch (e) {
       console.error("Subscribe failed:", e);
       alert((e as Error)?.message || "Subscription failed");
@@ -111,22 +95,18 @@ const PricingCard: React.FC<PricingCardProps> = ({ tier, onSubscribe, onClose })
     return ctaLabel;
   };
 
+  // Info chips for current plan
+  const showCancelChip = isCurrent && subMeta.cancel_at > 0;
+  const showRenewChip = isCurrent && !showCancelChip && subMeta.current_period_end > 0 && currentPlanCode !== "free";
+
   return (
-    <div
-      className={`relative flex flex-col justify-between rounded-3xl p-8 ring-1 xl:p-10 ${
-        isPopular ? "bg-gray-900 ring-gray-900" : "bg-white ring-gray-200"
-      }`}
-    >
+    <div className={`relative flex flex-col justify-between rounded-3xl p-8 ring-1 xl:p-10 ${isPopular ? "bg-gray-900 ring-gray-900" : "bg-white ring-gray-200"}`}>
       {onClose && (
         <button
           type="button"
           aria-label="Close"
           onClick={onClose}
-          className={`absolute top-3 right-3 rounded-md px-2 py-1 text-sm ${
-            isPopular
-              ? "text-gray-300 hover:text-white hover:bg-white/10"
-              : "text-gray-500 hover:text-gray-800 hover:bg-gray-100"
-          }`}
+          className={`absolute top-3 right-3 rounded-md px-2 py-1 text-sm ${isPopular ? "text-gray-300 hover:text-white hover:bg-white/10" : "text-gray-500 hover:text-gray-800 hover:bg-gray-100"}`}
         >
           ✕
         </button>
@@ -135,14 +115,31 @@ const PricingCard: React.FC<PricingCardProps> = ({ tier, onSubscribe, onClose })
       <div>
         <div className="flex items-center justify-between gap-x-4">
           <h3 className={`text-lg font-semibold leading-8 ${isPopular ? "text-white" : "text-gray-900"}`}>{tier.name}</h3>
-          {isPopular && (
-            <p className="rounded-full bg-indigo-600/10 px-2.5 py-1 text-xs font-semibold leading-5 text-indigo-400">
-              Most popular
-            </p>
-          )}
+          <div className="flex items-center gap-2">
+            {isPopular && (
+              <p className="rounded-full bg-indigo-600/10 px-2.5 py-1 text-xs font-semibold leading-5 text-indigo-400">
+                Most popular
+              </p>
+            )}
+            {isCurrent && (
+              <p className="rounded-full bg-emerald-600/10 px-2.5 py-1 text-xs font-semibold leading-5 text-emerald-600">
+                Current plan
+              </p>
+            )}
+            {showCancelChip && (
+              <p className="rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-semibold leading-5 text-amber-600">
+                Cancels on {fmtDate(subMeta.cancel_at)}
+              </p>
+            )}
+            {showRenewChip && (
+              <p className="rounded-full bg-blue-600/10 px-2.5 py-1 text-xs font-semibold leading-5 text-blue-700">
+                Renews {fmtDate(subMeta.current_period_end)}
+              </p>
+            )}
+          </div>
         </div>
 
-        <p className="mt-4 text-sm leading-6 text-gray-600">A plan that's right for you.</p>
+        <p className={`mt-4 text-sm leading-6 ${isPopular ? "text-gray-300" : "text-gray-600"}`}>A plan that's right for you.</p>
 
         <p className="mt-6 flex items-baseline gap-x-1">
           <span className={`text-4xl font-bold tracking-tight ${isPopular ? "text-white" : "text-gray-900"}`}>{tier.price}</span>
@@ -156,15 +153,32 @@ const PricingCard: React.FC<PricingCardProps> = ({ tier, onSubscribe, onClose })
             </li>
           ))}
         </ul>
+
+        {isCurrent && subMeta.days_left !== null && currentPlanCode === "free" && (
+          <p className={`mt-4 text-xs ${isPopular ? "text-gray-300" : "text-gray-600"}`}>
+            You’re on the free plan. Upgrade to increase limits.
+          </p>
+        )}
       </div>
 
-      <button
-        onClick={handleSubscription}
-        disabled={isLoading || isSuccess}
-        className={`${ctaClasses} ${isSuccess ? "bg-green-500 hover:bg-green-500 cursor-default text-white" : ""} disabled:opacity-70`}
-      >
-        {renderButtonContent()}
-      </button>
+      <div className="mt-6 space-y-3">
+        <button
+          onClick={handleSubscription}
+          disabled={isLoading || isSuccess || isCurrent}
+          className={`${ctaClasses} ${isCurrent ? "cursor-default opacity-70" : ""} ${isSuccess ? "bg-green-500 hover:bg-green-500 cursor-default text-white" : ""} disabled:opacity-70`}
+        >
+          {renderButtonContent()}
+        </button>
+
+        {/* {isCurrent && onManage && currentPlanCode !== "free" && (
+          <button
+            onClick={onManage}
+            className="w-full rounded-md py-2 px-3 text-center text-sm font-semibold leading-6 ring-1 ring-inset ring-gray-300 hover:ring-gray-400"
+          >
+            Manage billing
+          </button>
+        )} */}
+      </div>
     </div>
   );
 };
