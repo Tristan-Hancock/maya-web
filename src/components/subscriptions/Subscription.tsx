@@ -19,7 +19,7 @@ const tiers: Tier[] = [
 ];
 
 const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onClose }) => {
-  const BASE = (import.meta as any).env?.VITE_API_BILLING_STRIPE_PROD as string;
+  const BASE = (import.meta as any).env?.VITE_API_BILLING_STRIPE_STAGE as string;
 
   const onSubscribe = async (tier: Tier) => {
     if (tier.planCode === "free" || tier.planCode === "enterprise") {
