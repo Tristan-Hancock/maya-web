@@ -140,6 +140,7 @@ const App: React.FC = () => {
         let displayMessage = `Sorry, I hit an error: ${errMsg}`;
 
         if (status === 402) {
+
           if (reason === "thread_limit_reached") {
             displayMessage =
               `You’ve reached your free thread limit${cap !== undefined ? ` (${cap})` : ""}. ` +

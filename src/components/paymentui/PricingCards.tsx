@@ -31,7 +31,7 @@ const PricingCard: React.FC<PricingCardProps> = ({ tier, onSubscribe, onClose })
 
     // Stripe checkout endpoint (your new lambda)
     const BASE =
-      (import.meta as any).env?.VITE_API_BILLING_STRIPE_STAGE 
+      (import.meta as any).env?.VITE_API_BILLING_STRIPE_PROD 
      
 
     const url = `${BASE.replace(/\/$/, "")}/billing/stripe/checkout`;

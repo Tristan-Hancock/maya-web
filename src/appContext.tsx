@@ -17,8 +17,8 @@ type AppState = {
 const C = createContext<AppState | null>(null);
 export const useApp = () => useContext(C)!;
 
-const API_BASE = import.meta.env.VITE_API_BASE_STAGING as string;
-const API_BASE_PAYMENTS = import.meta.env.VITE_API_BILLING_STRIPE_STAGE as string;
+const API_BASE = import.meta.env.VITE_API_BASE as string;
+const API_BASE_PAYMENTS = import.meta.env.VITE_API_BILLING_STRIPE_PROD as string;
 
 function flagsFrom(sub: Subscription | null): FeatureFlags {
   const lim = sub?.limits || {};
@@ -74,11 +74,11 @@ export function AppProvider({children}:{children:React.ReactNode}) {
 const refreshThreads = useCallback(async (): Promise<ThreadMeta[]> => {
     const h = await authHeaders();
     const url = `${API_BASE}/threads/prod`;
-    console.log("[threads] fetch ->", url);
+    // console.log("[threads] fetch ->", url);
   
     const res = await fetch(url, { headers: h });
     const txt = await res.text();
-    console.log("[threads] status", res.status, "raw:", txt);
+    // console.log("[threads] status", res.status, "raw:", txt);
   
     let j: any = {};
     try { j = JSON.parse(txt); } catch (e) {
@@ -95,7 +95,7 @@ const refreshThreads = useCallback(async (): Promise<ThreadMeta[]> => {
       messages: Number(it.messages ?? it.message_count ?? it.counters_messages ?? 0),
     })).filter((t:ThreadMeta)=>t.threadHandle);
   
-    console.log("[threads] parsed ->", list.length, list);
+    // console.log("[threads] parsed ->", list.length, list);
     setThreads(list);
     (window as any)._mayaDebugThreads = list; // quick inspect in console
     return list;
@@ -104,29 +104,29 @@ const refreshThreads = useCallback(async (): Promise<ThreadMeta[]> => {
   const boot = useCallback(async () => {
     if (booting.current) { console.log("[boot] already running"); return; }
     booting.current = true;
-    console.log("[boot] start");
+    // console.log("[boot] start");
     try {
       const { tokens } = await fetchAuthSession();
       const subId = (tokens?.idToken as any)?.payload?.sub;
       (window as any)._mayaSubKey = subId;
-      console.log("[boot] subId", subId);
+      // console.log("[boot] subId", subId);
   
       const userRow = await fetchUserRow();
-      console.log("[boot] userRow", userRow);
+      // console.log("[boot] userRow", userRow);
       setSub(userRow);
       setFlags(flagsFrom(userRow));
   
       const list = await refreshThreads();
   
       const saved = localStorage.getItem(`maya:${subId}:threadHandle`);
-      console.log("[boot] saved handle", saved, "list[0]?", list[0]?.threadHandle);
+      // console.log("[boot] saved handle", saved, "list[0]?", list[0]?.threadHandle);
       if (saved) _setActiveThread(saved);
       else if (list.length) _setActiveThread(list[0].threadHandle ?? null);
   
       setReady(true);
-      console.log("[boot] ready");
+      // console.log("[boot] ready");
     } catch (e) {
-      console.error("[boot] failed:", e);
+      // console.error("[boot] failed:", e);
       setReady(true);
     } finally {
       booting.current = false;
@@ -135,7 +135,7 @@ const refreshThreads = useCallback(async (): Promise<ThreadMeta[]> => {
   
   // also log anytime threads change
   React.useEffect(() => {
-    console.log("[threads] state set ->", threads.length, threads);
+    // console.log("[threads] state set ->", threads.length, threads);
   }, [threads]);
   
   const value: AppState = { ready, sub, flags, threads, activeThread, setActiveThread, refreshThreads, boot };
