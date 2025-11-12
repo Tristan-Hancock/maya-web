@@ -1,7 +1,9 @@
+// Subscription.tsx
 import React from "react";
 import PricingCard from "../../components/paymentui/PricingCards";
 import type { Tier } from "../../types";
 import { fetchAuthSession } from "aws-amplify/auth";
+import { useApp } from "../../appContext"; // ← add
 
 type SubscriptionPageProps = { onClose?: () => void };
 
@@ -20,30 +22,53 @@ const tiers: Tier[] = [
 
 const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onClose }) => {
   const BASE = (import.meta as any).env?.VITE_API_BILLING_STRIPE_STAGE as string;
+  const { sub } = useApp(); // ← current subscription from context
 
   const onSubscribe = async (tier: Tier) => {
-    if (tier.planCode === "free" || tier.planCode === "enterprise") {
-      // optional: handle free/enterprise differently
+    if (tier.planCode === "free") {
+      onClose?.();
       return;
     }
-
+  
+    if (tier.planCode === "enterprise") {
+      alert("For Enterprise Software, please connect with us at info@ovelia.health");
+      return;
+    }
+  
     const { tokens } = await fetchAuthSession();
     const idToken = tokens?.idToken?.toString();
     if (!idToken) throw new Error("Not authenticated");
-
+  
     const url = `${String(BASE).replace(/\/$/, "")}/billing/stripe/checkout`;
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
-      body: JSON.stringify({ plan_code: tier.planCode }), // "tier1" | "tier2" | "tier3"
+      body: JSON.stringify({ plan_code: tier.planCode }),
     });
-
+  
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error || `Checkout failed (${res.status})`);
     if (!data?.url) throw new Error("Checkout URL missing");
-
-    window.location.href = data.url; // redirect to Stripe Checkout
+  
+    window.location.href = data.url;
   };
+  
+  const onManage = async () => {
+    const { tokens } = await fetchAuthSession();
+    const idToken = tokens?.idToken?.toString();
+    if (!idToken) throw new Error("Not authenticated");
+
+    const url = `${String(BASE).replace(/\/$/, "")}/billing/stripe/portal`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data?.url) throw new Error(data?.error || "Portal URL missing");
+    window.location.href = data.url;
+  };
+
+  const currentPlanCode = sub?.plan_code ?? "free";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -60,7 +85,10 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onClose }) => {
         <div className="mx-auto max-w-7xl px-6 pt-16 pb-8 text-center">
           <h2 className="text-base font-semibold leading-7 text-indigo-600">Pricing</h2>
           <p className="mt-2 text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">The right plan for you</p>
-          <p className="mt-6 mx-auto max-w-2xl text-lg leading-8 text-gray-600">Start for free and upgrade anytime.</p>
+          <p className="mt-2 text-sm text-gray-500">
+            Current plan: <span className="font-semibold">{currentPlanCode}</span>
+          </p>
+          <p className="mt-4 mx-auto max-w-2xl text-lg leading-8 text-gray-600">Start for free and upgrade anytime.</p>
         </div>
 
         <div className="flow-root bg-white pb-16 sm:pb-24 rounded-b-3xl">
@@ -70,7 +98,15 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onClose }) => {
                 <PricingCard
                   key={tier.planCode}
                   tier={tier}
-                  onSubscribe={onSubscribe}  // ← wire it here
+                  currentPlanCode={currentPlanCode}                // ← new
+                  subMeta={{
+                    status: sub?.status ?? "none",
+                    cancel_at: sub?.cancel_at ?? 0,
+                    current_period_end: sub?.current_period_end ?? 0,
+                    days_left: sub?.days_left ?? null,
+                  }}                                                // ← new
+                  onSubscribe={onSubscribe}
+                  onManage={onManage}                               // ← new
                   onClose={onClose}
                 />
               ))}
