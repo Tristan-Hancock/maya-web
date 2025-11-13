@@ -8,7 +8,7 @@ import {
   PauseCircleIcon,
 //   SparklesIcon,
 } from '../components/icons/iconslist';
-
+import mayavoiceIntro from '../assets/audio/mayain.mp3';
 // --- Audio Utilities ---
 //call the recorded audio file 
 
@@ -72,6 +72,30 @@ const AuthFeaturePanel: React.FC = () => {
 
     }, [text, isDeleting, phraseIndex, phrases]);
 
+// --- Add this useEffect below your typing effect ---
+useEffect(() => {
+  const initAudio = async () => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioContextRef.current = ctx;
+
+      const response = await fetch(mayavoiceIntro);
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = await ctx.decodeAudioData(arrayBuffer);
+      audioBufferRef.current = buffer;
+    } catch (err) {
+      console.error("Failed to load Maya intro audio:", err);
+    }
+  };
+  initAudio();
+  return () => {
+    audioContextRef.current?.close();
+  };
+}, []);
+
+
+
+
     useEffect(() => {
         // Initialize AudioContext
        
@@ -84,37 +108,44 @@ const AuthFeaturePanel: React.FC = () => {
             }, 500); // must match fade-out duration
         }, 4000); // How long each question is displayed
 
-        return () => {
+        return () => { 
              audioContextRef.current?.close();
              clearInterval(questionInterval);
         }
     }, [exampleQuestions.length]);
 
     const togglePlay = async () => {
-        const audioContext = audioContextRef.current;
-        if (!audioContext || !audioBufferRef.current) return;
-
-        if (isPlaying && sourceRef.current) {
-            sourceRef.current.stop();
-            sourceRef.current = null;
-            setIsPlaying(false);
-        } else {
-            if (audioContext.state === 'suspended') {
-                await audioContext.resume();
-            }
-            
-            const source = audioContext.createBufferSource();
-            source.buffer = audioBufferRef.current;
-            source.connect(audioContext.destination);
-            source.start();
-            source.onended = () => {
-                setIsPlaying(false);
-                sourceRef.current = null;
-            };
-            sourceRef.current = source;
-            setIsPlaying(true);
-        }
+      const audioContext = audioContextRef.current;
+      if (!audioContext || !audioBufferRef.current) return;
+    
+      // Stop if already playing
+      if (isPlaying && sourceRef.current) {
+        sourceRef.current.stop();
+        sourceRef.current.disconnect();
+        sourceRef.current = null;
+        setIsPlaying(false);
+        return;
+      }
+    
+      // Resume context if suspended (browser policy)
+      if (audioContext.state === "suspended") {
+        await audioContext.resume();
+      }
+    
+      // Create and start new source
+      const source = audioContext.createBufferSource();
+      source.buffer = audioBufferRef.current;
+      source.connect(audioContext.destination);
+      source.start(0);
+    
+      setIsPlaying(true);
+      source.onended = () => {
+        setIsPlaying(false);
+        sourceRef.current = null;
+      };
+      sourceRef.current = source;
     };
+    
 
   return (
     <div className="hidden md:flex flex-col p-8 md:p-12 lg:p-16 bg-white h-full">
