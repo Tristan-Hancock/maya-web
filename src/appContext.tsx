@@ -73,7 +73,7 @@ export function AppProvider({children}:{children:React.ReactNode}) {
   // appContext.tsx
 const refreshThreads = useCallback(async (): Promise<ThreadMeta[]> => {
     const h = await authHeaders();
-    const url = `${API_BASE}/threads/prod`;
+    const url = `${API_BASE}/threads/stage`;
     // console.log("[threads] fetch ->", url);
   
     const res = await fetch(url, { headers: h });
@@ -83,9 +83,9 @@ const refreshThreads = useCallback(async (): Promise<ThreadMeta[]> => {
     let j: any = {};
     try { j = JSON.parse(txt); } catch (e) {
       console.error("[threads] JSON parse error:", e);
-      throw new Error("Invalid JSON from /threads/prod");
+      throw new Error("Invalid JSON from /threads/stage");
     }
-    if (!res.ok) throw new Error(j?.error || `failed /threads/prod (${res.status})`);
+    if (!res.ok) throw new Error(j?.error || `failed /threads/stage (${res.status})`);
   
     const list: ThreadMeta[] = (j.threads || j.items || []).map((it:any)=>({
       threadHandle: it.threadHandle || it.thread_handle || it.handle || it.pk?.replace?.(/^thread#/, "") || "",
