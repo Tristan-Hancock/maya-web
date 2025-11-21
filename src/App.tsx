@@ -1,4 +1,3 @@
-// src/App.tsx
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import type { ChatMessage } from "./types";
 import { sendMessage, sendDocument, fetchThreadHistory } from "./services/openAIservice";
@@ -25,24 +24,80 @@ const App: React.FC = () => {
   const [voiceGate, setVoiceGate] = useState<Parameters<typeof VoiceGateModal>[0]["gate"]>(null);
   const [showSub, setShowSub] = useState(false);
   const onVoicePreflight = async () => {
-    const { client_secret, session_deadline_ms } = await createVoiceSession();
-    return { client_secret, session_deadline_ms };
+    const { client_secret, session_deadline_ms, session_started_ms } = await createVoiceSession();
+    return { client_secret, session_deadline_ms, session_started_ms };
   };
-  const onStartCallWithSecret = async (clientSecret: string, sessionDeadlineMs?: number) => {
+
+  // guard to ensure we call /voice/end only once per call
+  const endedRef = useRef(false);
+
+  const onStartCallWithSecret = async (clientSecret: string, sessionDeadlineMs?: number, sessionStartedMs?: number) => {
+    // reset guard
+    endedRef.current = false;
+
     await voice.start({
       clientSecret,
       sessionDeadlineMs,
+      sessionStartedMs,
       onRemoteAudio: (el) => {
         const root = document.getElementById("voice-audio-root");
         if (root) { root.innerHTML = ""; root.appendChild(el); }
       },
+      // optional: explicit per-call fallback if you want (ms): 2 minutes
+      perCallMs: 2 * 60 * 1000,
+      onAutoEnd: async (elapsedSec: number) => {
+        // If already ended by UI, do nothing
+        if (endedRef.current) return;
+        endedRef.current = true;
+
+        // ensure local hook is stopped (it tries in start's timer, but double-safeguard)
+        try { await voice.stop(); } catch {}
+
+        // call server end exactly once
+        try { await endVoiceSession(elapsedSec); } catch (e) {
+          console.warn("[voice] onAutoEnd endVoiceSession failed", e);
+        }
+
+        // notify UI components (ChatInput) that call ended so they can update immediately
+        try {
+          window.dispatchEvent(new CustomEvent("maya_voice_auto_end", { detail: { elapsedSec } }));
+        } catch (e) {
+          console.warn("[voice] dispatch maya_voice_auto_end failed", e);
+        }
+
+        // update UI state (clear gates, modals)
+        setVoiceGate(null);
+        setShowSub(false);
+      }
+
     });
   };
+
   const onEndCallSettle = async (elapsedSec: number) => {
-    try { await endVoiceSession(elapsedSec); } catch {}
-    await voice.stop(undefined);
+    // ensure single call only
+    if (endedRef.current) {
+      // still stop local resources if necessary
+      try { await voice.stop(); } catch {}
+      return;
+    }
+    endedRef.current = true;
+
+    // stop local hook first (get accurate elapsed sec from hook if you prefer)
+    let secsToSend = elapsedSec;
+    try {
+      const hookSecs = await voice.stop();
+      // prefer hook measured elapsed secs if it returns a non-zero value
+      if (hookSecs && hookSecs > 0) secsToSend = hookSecs;
+    } catch (e) {
+      console.warn("[voice] failed to stop local hook", e);
+    }
+
+    // call backend to settle billing and update usage
+    try { await endVoiceSession(secsToSend); } catch (e) {
+      console.warn("[voice] endVoiceSession failed", e);
+    }
   };
-  
+
   const onVoiceBlocked = (err: any) => {
     if (err?.message === "voice_not_wired") {
       console.warn("[voice] ChatInput not wired correctly");
@@ -241,15 +296,7 @@ const App: React.FC = () => {
     [isLoading, activeThread, messages.length, setActiveThread]
   );
 
-
-
-
-
-
-
-//handling the errors here 
   function buildVoiceGate(err: any) {
-    // createVoiceSession throws with { status, kind, reason, cap, used, wait_ms }
     if (err?.status === 402 && (err?.kind === "voice_cap" || err?.reason)) {
       const reason = String(err.reason || "");
       if (reason === "cooldown_active") {
@@ -262,22 +309,18 @@ const App: React.FC = () => {
       if (reason === "concurrent_call") return { kind: "concurrent_call" as const };
       return { kind: "generic" as const, message: "Upgrade to use voice or try again later." };
     }
-    // Non-402
     return { kind: "generic" as const, message: err?.message || "Voice is unavailable right now." };
   }
-   // simple upgrade action
-   const goUpgrade = () => {
+
+  const goUpgrade = () => {
     setVoiceGate(null);
-    setShowSub(true);     // open pricing modal
+    setShowSub(true);
   };
   
   return (
     <div className="flex flex-col min-h-screen text-[#191D38] bg-[repeating-linear-gradient(to_bottom,#EAEBFF_0%,#FFFFFF_40%,#EAEBFF_80%)]">
-        {/* hidden container to host the remote <audio> element */}
-        {/* was hidden */}
-<div id="voice-audio-root" className="fixed w-0 h-0 overflow-hidden opacity-0 pointer-events-none" aria-hidden="true" />
+        <div id="voice-audio-root" className="fixed w-0 h-0 overflow-hidden opacity-0 pointer-events-none" aria-hidden="true" />
 
-      {/* messages area with overlay */}
       <div className="relative flex-1">
         {threadLoading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center">
@@ -315,7 +358,6 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* input */}
       <div className="px-4 pb-4 md:pb-8 w-full sticky bottom-0 bg-gradient-to-t from-white via-white/90 to-transparent">
         <div className="max-w-3xl mx-auto">
        <ChatInput
@@ -350,4 +392,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
