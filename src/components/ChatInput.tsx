@@ -1,4 +1,3 @@
-//ChatInput.tsx
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import PlusIcon from './icons/PlusIcon';
 import CallIcon from './icons/callIcon';
@@ -18,7 +17,7 @@ interface ChatInputProps {
     session_deadline_ms?: number;
     session_started_ms?: number;   // ← new
   }>;
-  onStartCall?: (clientSecret: string, sessionDeadlineMs?: number) => Promise<void> | void; // ← accepts deadline
+  onStartCall?: (clientSecret: string, sessionDeadlineMs?: number, sessionStartedMs?: number) => Promise<void> | void; // ← accepts deadline + started ms
   onEndCall?: (elapsedSec: number) => Promise<void> | void;
   onVoiceBlocked?: (err: any) => void;
 
@@ -156,56 +155,86 @@ const ChatInput: React.FC<ChatInputProps> = ({
   };
 
   // Start call with preflight gating
- // inside ChatInput component, replace startCall/endCall with this:
+  const startCall = async () => {
+    if (callActive) return;
+    try {
+      if (!onVoicePreflight || !onStartCall) throw new Error("voice_not_wired");
 
-const startCall = async () => {
-  if (callActive) return;
-  try {
-    if (!onVoicePreflight || !onStartCall) throw new Error("voice_not_wired");
+      console.log("[voice] preflight → server");
+      const { client_secret, session_deadline_ms, session_started_ms } = await onVoicePreflight();
+      console.log("[voice] preflight OK", { session_deadline_ms, session_started_ms: !!session_started_ms });
 
-    console.log("[voice] preflight → server");
-    const { client_secret, session_deadline_ms, session_started_ms } = await onVoicePreflight();
-    console.log("[voice] preflight OK", { session_deadline_ms, session_started_ms: !!session_started_ms });
+      // initialize callSeconds aligned to server start if provided
+      setCallSeconds(() => {
+        if (session_started_ms && session_started_ms < Date.now()) {
+          const secs = Math.max(0, Math.floor((Date.now() - session_started_ms) / 1000));
+          return secs;
+        }
+        return 0;
+      });
 
-    setCallSeconds(() => {
-      if (session_started_ms && session_started_ms < Date.now()) {
-        const secs = Math.max(0, Math.floor((Date.now() - session_started_ms) / 1000));
-        return secs;
+      console.log("[voice] onStartCall with client_secret…");
+
+      // Pass server start + deadline through to parent onStartCall
+      await onStartCall(client_secret, session_deadline_ms, session_started_ms);
+
+      // UI state
+      setCallActive(true);
+      console.log("[voice] callActive=true");
+
+      clearEndTimer();
+
+      // Primary auto-end handled by hook via onAutoEnd; but parent still sets a UI timer (redundant)
+      // Set UI-only fallback timer (same logic you had before) to ensure UX updates
+      if (session_deadline_ms && session_deadline_ms > Date.now()) {
+        const ms = Math.max(0, session_deadline_ms - Date.now() - 1000);
+        endTimerRef.current = window.setTimeout(() => { endCall(); }, ms);
+        console.log("[voice] auto-end timer set (ms):", ms);
+      } else {
+        endTimerRef.current = window.setTimeout(() => endCall(), 50_000);
+        console.log("[voice] fallback auto-end timer set (50s)");
       }
-      return 0;
-    });
-
-    console.log("[voice] onStartCall with client_secret…");
-    await onStartCall(client_secret, session_deadline_ms);
-
-    setCallActive(true);
-    console.log("[voice] callActive=true");
-
-    clearEndTimer();
-    if (session_deadline_ms && session_deadline_ms > Date.now()) {
-      const ms = Math.max(0, session_deadline_ms - Date.now() - 1000);
-      endTimerRef.current = window.setTimeout(() => { endCall(); }, ms);
-      console.log("[voice] auto-end timer set (ms):", ms);
-    } else {
-      endTimerRef.current = window.setTimeout(() => endCall(), 50_000);
-      console.log("[voice] fallback auto-end timer set (50s)");
+    } catch (e: any) {
+      console.error("[voice] blocked/error:", e);
+      onVoiceBlocked?.(e);
     }
-  } catch (e: any) {
-    console.error("[voice] blocked/error:", e);
-    onVoiceBlocked?.(e);
-  }
-};
+  };
 
-const endCall = async () => {
-  if (!callActive) return;
-  clearEndTimer();
-  setCallActive(false);
-  const secs = callSeconds;
-  setCallSeconds(0);
-  console.log("[voice] ending call, elapsedSec:", secs);
-  try { await onEndCall?.(secs); } catch (e) { console.warn("[voice] endCall error:", e); }
-};
-
+  const endCall = async () => {
+    if (!callActive) return;
+    clearEndTimer();
+    setCallActive(false);
+    const secs = callSeconds;
+    setCallSeconds(0);
+    console.log("[voice] ending call, elapsedSec:", secs);
+    try {
+      // Ensure the parent calls backend /voice/end exactly once
+      await onEndCall?.(secs);
+    } catch (e) {
+      console.warn("[voice] endCall error:", e);
+    }
+  };
+    // Listen for global auto-end dispatched by App so UI updates when server/Hook ends the call
+    useEffect(() => {
+      const handler = (ev: Event) => {
+        try {
+          const detail = (ev as CustomEvent)?.detail || {};
+          const elapsed = typeof detail.elapsedSec === "number" ? detail.elapsedSec : callSeconds;
+          // stop local timers and update UI
+          clearEndTimer();
+          setCallActive(false);
+          setCallSeconds(elapsed || 0);
+          console.log("[voice] received maya_voice_auto_end, UI updated, elapsed:", elapsed);
+        } catch (err) {
+          console.warn("[voice] maya_voice_auto_end handler error", err);
+        }
+      };
+      window.addEventListener("maya_voice_auto_end", handler as EventListener);
+      return () => {
+        window.removeEventListener("maya_voice_auto_end", handler as EventListener);
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
   
 
   const canSend = !isLoading && !callActive && (input.trim().length > 0 || !!file);
@@ -332,4 +361,3 @@ const endCall = async () => {
 };
 
 export default ChatInput;
-
