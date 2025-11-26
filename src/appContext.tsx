@@ -17,14 +17,14 @@ type AppState = {
 const C = createContext<AppState | null>(null);
 export const useApp = () => useContext(C)!;
 
-const API_BASE = import.meta.env.VITE_API_BASE as string;
-const API_BASE_PAYMENTS = import.meta.env.VITE_API_BILLING as string;
+const API_BASE = import.meta.env.VITE_API_BASE_STAGING as string;
+const API_BASE_PAYMENTS = import.meta.env.VITE_API_BILLING_STRIPE_STAGE as string;
 
 function flagsFrom(sub: Subscription | null): FeatureFlags {
   const lim = sub?.limits || {};
   return {
     canHistory: !!lim.keep_history,
-    maxPrompts: lim.monthly_prompts ?? (sub?.status==="active" ? null : 5),
+    maxPrompts: lim.monthly_prompts ?? (sub?.status === "active" ? null : 5),
     maxImages: lim.image_uploads ?? 0,
     maxDocs: lim.doc_uploads ?? 0,
   };
@@ -53,19 +53,27 @@ export function AppProvider({children}:{children:React.ReactNode}) {
 
   const fetchUserRow = useCallback(async (): Promise<Subscription> => {
     const h = await authHeaders();
-    const res = await fetch(`${API_BASE_PAYMENTS}/billing/status`, { headers: h });
-    const j = await res.json();
-    if (!res.ok) throw new Error(j?.error || "failed /billing/status");
+    const url = `${API_BASE_PAYMENTS}/billing/status`;
+    const res = await fetch(url, { headers: h });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(j?.error || `failed GET ${url}`);
+  
     return {
       status: j.subscription_status ?? "none",
       plan_code: j.plan_code ?? "free",
       limits: j.limits ?? {},
+      current_period_end: typeof j.current_period_end === "number" ? j.current_period_end : 0,
+      cancel_at: typeof j.cancel_at === "number" ? j.cancel_at : 0,
+      access_ends_at: (j.access_ends_at ?? null),
+      days_left: (typeof j.days_left === "number" ? j.days_left : null),
     };
   }, [authHeaders]);
+  
 
   // appContext.tsx
 const refreshThreads = useCallback(async (): Promise<ThreadMeta[]> => {
     const h = await authHeaders();
+
     const url = `${API_BASE}/threads/prod`;
     // console.log("[threads] fetch ->", url);
   
@@ -76,9 +84,9 @@ const refreshThreads = useCallback(async (): Promise<ThreadMeta[]> => {
     let j: any = {};
     try { j = JSON.parse(txt); } catch (e) {
       console.error("[threads] JSON parse error:", e);
-      throw new Error("Invalid JSON from /threads/prod");
+      throw new Error("Invalid JSON from /threads/stage");
     }
-    if (!res.ok) throw new Error(j?.error || `failed /threads/prod (${res.status})`);
+    if (!res.ok) throw new Error(j?.error || `failed /threads/stage (${res.status})`);
   
     const list: ThreadMeta[] = (j.threads || j.items || []).map((it:any)=>({
       threadHandle: it.threadHandle || it.thread_handle || it.handle || it.pk?.replace?.(/^thread#/, "") || "",

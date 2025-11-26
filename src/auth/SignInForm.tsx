@@ -1,13 +1,18 @@
 // src/auth/SignInForm.tsx
-import React, { useState } from "react";
+import React, { useState , useEffect} from "react";
 import { useAuth } from "./AuthContext";
 
 export default function SignInForm() {
-  const { doSignIn, setRoute, error, clearError } = useAuth();
-  const [email, setEmail] = useState("");
+  const { doSignIn, setRoute, error, clearError, pendingEmail } = useAuth();
+  const [email, setEmail] = useState<string>(pendingEmail ?? "");
   const [pwd, setPwd] = useState("");
+
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (pendingEmail) setEmail(pendingEmail);
+  }, [pendingEmail]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

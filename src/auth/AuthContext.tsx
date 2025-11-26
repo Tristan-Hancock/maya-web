@@ -26,13 +26,20 @@ type AuthContextValue = {
   displayLabel: string;   // email if present, otherwise a readable fallback
   displayInitial: string; // first letter of displayLabel or "U"
 
+   // store the email used for signup (so confirm step doesn't need re-entry)
+  // store the email used for signup (so confirm step doesn't need re-entry)
+  pendingEmail: string | null;
+  setPendingEmail: (email: string | null) => void;
+
   doSignIn: (username: string, password: string) => Promise<void>;
   doSignUp: (email: string, password: string) => Promise<void>;
-  doConfirmSignUp: (email: string, code: string) => Promise<void>;
-  doResendCode: (email: string) => Promise<void>;
+  // allow null so callers can pass `null` to mean "use pendingEmail"
+  doConfirmSignUp: (email: string | null, code: string) => Promise<void>;
+  doResendCode: (email: string | null) => Promise<void>;
   startResetPassword: (email: string) => Promise<void>;
   finishResetPassword: (email: string, code: string, newPassword: string) => Promise<void>;
   doSignOut: () => Promise<void>;
+
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -46,6 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // stable display identity
   const [displayLabel, setDisplayLabel] = useState<string>("");
   const [displayInitial, setDisplayInitial] = useState<string>("U");
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
   const clearError = () => setErr(null);
 
@@ -110,18 +118,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setRoute("app");
     } catch (e: any) {
       if (e?.name === "UserNotConfirmedException" || e?.name === "UserUnconfirmedException") {
+        // store attempted username so confirm screen doesn't ask the user to retype it
+        try { setPendingEmail(username); } catch {}
         setRoute("confirmSignUp");
       } else {
         setErr(e?.message || "Sign in failed");
       }
       throw e;
     }
+
   }, [hydrateDisplayIdentity]);
 
   const doSignUp = useCallback(async (email: string, password: string) => {
     setErr(null);
     try {
       await signUp({ username: email, password, options: { userAttributes: { email } } });
+      setPendingEmail(email);         // << store email for confirm step
       setRoute("confirmSignUp");
     } catch (e: any) {
       setErr(e?.message || "Sign up failed");
@@ -129,26 +141,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const doConfirmSignUp = useCallback(async (email: string, code: string) => {
+
+  const doConfirmSignUp = useCallback(async (emailOrEmpty: string | null, code: string) => {
     setErr(null);
     try {
-      await confirmSignUp({ username: email, confirmationCode: code });
+      const emailToUse = emailOrEmpty || pendingEmail;
+      if (!emailToUse) throw new Error("Email missing for confirmation");
+      await confirmSignUp({ username: emailToUse, confirmationCode: code });
+      // keep pendingEmail so sign-in can be prefilled
+      setPendingEmail(emailToUse);
       setRoute("signIn");
     } catch (e: any) {
       setErr(e?.message || "Confirmation failed");
       throw e;
     }
-  }, []);
+  }, [pendingEmail]);
 
-  const doResendCode = useCallback(async (email: string) => {
+
+  const doResendCode = useCallback(async (emailOrEmpty: string | null) => {
     setErr(null);
     try {
-      await resendSignUpCode({ username: email });
+      const emailToUse = emailOrEmpty || pendingEmail;
+      if (!emailToUse) throw new Error("Email missing for resend");
+      await resendSignUpCode({ username: emailToUse });
     } catch (e: any) {
       setErr(e?.message || "Could not resend code");
       throw e;
     }
-  }, []);
+  }, [pendingEmail]);
+
 
   const startResetPassword = useCallback(async (email: string) => {
     setErr(null);
@@ -179,7 +200,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setDisplayLabel("");
       setDisplayInitial("U");
+      setPendingEmail(null); // clear pending email on sign-out
       setRoute("signIn");
+
     } catch (e: any) {
       setErr(e?.message || "Sign out failed");
       throw e;
@@ -196,6 +219,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     displayLabel,
     displayInitial,
+    pendingEmail,
+    setPendingEmail,
 
     doSignIn,
     doSignUp,
