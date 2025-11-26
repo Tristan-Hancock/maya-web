@@ -19,7 +19,7 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
             <h1 className="text-5xl sm:text-6xl font-extrabold text-[#1B2245] tracking-tight">
               Maya
             </h1>
-            <p className="mt-2 text-sm text-gray-600">Sign in to continue</p>
+            {/* <p className="mt-2 text-sm text-gray-600">Sign in to continue</p> */}
           </div>
 
           {/* Auth card */}
