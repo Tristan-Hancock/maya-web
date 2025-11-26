@@ -73,7 +73,8 @@ export function AppProvider({children}:{children:React.ReactNode}) {
   // appContext.tsx
 const refreshThreads = useCallback(async (): Promise<ThreadMeta[]> => {
     const h = await authHeaders();
-    const url = `${API_BASE}/threads/stage`;
+
+    const url = `${API_BASE}/threads/prod`;
     // console.log("[threads] fetch ->", url);
   
     const res = await fetch(url, { headers: h });
@@ -102,7 +103,9 @@ const refreshThreads = useCallback(async (): Promise<ThreadMeta[]> => {
   }, [authHeaders]);
   
   const boot = useCallback(async () => {
-    if (booting.current) { console.log("[boot] already running"); return; }
+    if (booting.current) { 
+      // console.log("[boot] already running");
+       return; }
     booting.current = true;
     // console.log("[boot] start");
     try {
