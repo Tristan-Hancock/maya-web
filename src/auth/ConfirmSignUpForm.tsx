@@ -1,21 +1,33 @@
 // src/auth/ConfirmSignUpForm.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 
 export default function ConfirmSignUpForm() {
-  const { doConfirmSignUp, doResendCode, setRoute, error, clearError } = useAuth();
+  const { doConfirmSignUp, doResendCode, setRoute, error, clearError , pendingEmail, setPendingEmail} = useAuth();
   const [email, setEmail] = useState("");
+  // store the email used for signup (so confirm step doesn't need re-entry)
+
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    // keep local email in sync if pendingEmail changes
+    if (pendingEmail) setEmail(pendingEmail);
+  }, [pendingEmail]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     clearError(); setMsg(null);
     setLoading(true);
     try {
-      await doConfirmSignUp(email, code);
+      // If pendingEmail exists, pass null so AuthContext uses it; otherwise pass the typed email
+      const emailArg = pendingEmail ? null : email;
+      await doConfirmSignUp(emailArg, code);
       setMsg("Email confirmed! You can sign in now.");
+      // after successful confirm, AuthContext routes to signIn and keeps pendingEmail for prefill
+    } catch (err) {
+      // error handled via context.error
     } finally {
       setLoading(false);
     }
@@ -23,21 +35,35 @@ export default function ConfirmSignUpForm() {
 
   async function resend() {
     clearError(); setMsg(null);
-    await doResendCode(email);
-    setMsg("Code sent.");
+    try {
+      const emailArg = pendingEmail ? null : email;
+      await doResendCode(emailArg);
+      setMsg("Code sent.");
+      // ensure the pendingEmail is stored if user typed it
+      if (!pendingEmail && email) setPendingEmail(email);
+    } catch (err) {
+      // error shown via context.error
+    }
   }
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <h2 className="text-xl font-semibold text-[#1B2245]">Confirm your email</h2>
 
-      <input
-        className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-[#BBBFFE]"
-        placeholder="Email address"
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
+      {pendingEmail ? (
+        <div className="text-sm text-gray-700">
+          Enter the confirmation code sent to <span className="font-medium">{pendingEmail}</span>
+        </div>
+      ) : (
+        <input
+          className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-[#BBBFFE]"
+          placeholder="Email address"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+      )}
+
       <input
         className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-[#BBBFFE]"
         placeholder="Confirmation code"

@@ -3,11 +3,14 @@
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
+  attachmentName?: string | null; // ← add this
+
 }
 
 
 // src/types.ts
 export type PlanCode = "free" | "tier1" | "tier2" | "tier3" | "enterprise";
+export type SubscriptionStatus = "none" | "active" | "past_due" | "cancel_at_period_end" | "canceled";
 
 export interface Tier {
   name: string;                // display name
@@ -20,9 +23,13 @@ export interface Tier {
 }
 
 export type Subscription = {
-  status: "none"|"active"|"past_due"|"canceled";
-  plan_code: "free"|"tier1"|"tier2"|"tier3"|string;
-  limits: Limits;
+  status: SubscriptionStatus;
+  plan_code: PlanCode | "free";
+  limits: Record<string, any>;
+  current_period_end?: number;     // epoch seconds
+  cancel_at?: number;              // epoch seconds (if set by Stripe)
+  access_ends_at?: number | null;  // epoch seconds (derived on backend)
+  days_left?: number | null;       // integer, derived on backend
 };
 
 export interface Limits {
