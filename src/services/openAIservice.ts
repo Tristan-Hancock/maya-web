@@ -70,7 +70,7 @@ export async function sendDocument(
   if (userMessage?.trim()) fd.append("userMessage", userMessage.trim());
   if (threadHandle) fd.append("threadHandle", threadHandle);
 
-  const res = await fetch(`${API_BASE}/test/api/chat`, {
+  const res = await fetch(`${API_BASE}/api/chat`, {
     method: "POST",
     headers, // no manual Content-Type
     body: fd,
