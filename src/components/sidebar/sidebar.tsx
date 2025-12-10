@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { PlusIcon, MessageIcon, CloseIcon } from "../icons/sidebaricons";
 import { useApp } from "../../appContext";
-import { fetchAuthSession } from "aws-amplify/auth";
 
 export interface SidebarProps {
   isOpen: boolean;
@@ -9,11 +8,8 @@ export interface SidebarProps {
   onNewChat: () => void;
   onSelectThread: (threadHandle: string) => void;
   onClose: () => void;
-  onDeleteThread?: (threadHandle: string) => void; // optional callback
+  onDeleteThread?: (threadHandle: string) => void; // ⇐ used to trigger modal
 }
-
-const API_BASE = import.meta.env.VITE_API_BASE_STAGING as string;
-const DELETE_PATH = "/delete/stage/threads";
 
 const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
@@ -25,81 +21,20 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { threads, activeThread, setActiveThread, refreshThreads } = useApp();
 
-  // track previous open state so we only refresh when opening
   const wasOpenRef = useRef<boolean>(false);
 
   useEffect(() => {
-    // On mount if sidebar already open, refresh once
     if (isOpen && !wasOpenRef.current) {
       void refreshThreads();
       wasOpenRef.current = true;
       return;
     }
-    // update ref when closed
     if (!isOpen) wasOpenRef.current = false;
   }, [isOpen, refreshThreads]);
 
   const handleSelect = (h: string) => {
     setActiveThread(h);
     onSelectThread(h);
-  };
-
-  // ---- API delete helper (Lambda) ----
-  const apiDelete = async (threadHandle: string) => {
-    console.log("[DELETE] initiating for threadHandle:", threadHandle);
-    console.log("[DELETE] API_BASE:", API_BASE, "DELETE_PATH:", DELETE_PATH);
-
-    if (!API_BASE) {
-      console.error("[DELETE] missing API_BASE");
-      throw new Error("missing_api_base");
-    }
-
-    const { tokens } = await fetchAuthSession();
-    const idToken = tokens?.idToken?.toString();
-
-    console.log("[DELETE] auth session", {
-      hasTokens: !!tokens,
-      hasIdToken: !!idToken,
-    });
-
-    if (!idToken) {
-      console.error("[DELETE] missing idToken");
-      throw new Error("missing_token");
-    }
-
-    const url = `${API_BASE}${DELETE_PATH}`;
-    const body = {
-      threadHandle,
-      pk: `thread#${threadHandle}`,
-    };
-
-    console.log("[DELETE] request", {
-      url,
-      method: "DELETE",
-      body,
-    });
-
-    const resp = await fetch(url, {
-      method: "DELETE", // Lambda/router is allowing POST
-      headers: {
-        Authorization: `Bearer ${idToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-
-    const text = await resp.text();
-    console.log("[DELETE] raw response", resp.status, text);
-
-    if (!resp.ok) {
-      throw new Error(`delete_failed_${resp.status}`);
-    }
-
-    try {
-      return JSON.parse(text);
-    } catch {
-      return {};
-    }
   };
 
   // menu state for per-thread kebab menu
@@ -110,33 +45,14 @@ const Sidebar: React.FC<SidebarProps> = ({
     setOpenMenu((cur) => (cur === threadHandle ? null : threadHandle));
   };
 
-  const handleDelete = (threadHandle: string) => async (e?: React.MouseEvent) => {
+  // just request delete: AuthGate will show modal & call API
+  const handleDeleteRequest = (threadHandle: string) => (e?: React.MouseEvent) => {
     e?.stopPropagation();
-
-    if (!window.confirm("Delete this chat?")) {
-      setOpenMenu(null);
-      return;
-    }
-
-    try {
-      await apiDelete(threadHandle);
-
-      // optional parent callback
-      if (onDeleteThread) {
-        onDeleteThread(threadHandle);
-      }
-
-      // if the deleted one was active, clear it
-      if (activeThread === threadHandle) {
-        setActiveThread(null as any);
-      }
-
-      setOpenMenu(null);
-      await refreshThreads();
-    } catch (err) {
-      console.error("[DELETE] error:", err);
-      window.alert("Delete failed. Try again.");
-      setOpenMenu(null);
+    setOpenMenu(null);
+    if (onDeleteThread) {
+      onDeleteThread(threadHandle);
+    } else {
+      console.warn("[Sidebar] onDeleteThread not provided, cannot delete", threadHandle);
     }
   };
 
@@ -229,7 +145,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                       className="p-2 rounded-md hover:bg-slate-100 z-10 focus:outline-none"
                       type="button"
                     >
-                      {/* visible filled 3-dot icon (uses currentColor) */}
                       <svg
                         className="w-5 h-5 text-slate-700"
                         viewBox="0 0 24 24"
@@ -245,7 +160,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                 </button>
 
-                {/* menu popover (very small) */}
+                {/* small menu popover */}
                 {openMenu === id && (
                   <div
                     className="absolute right-2 top-12 z-50"
@@ -253,13 +168,12 @@ const Sidebar: React.FC<SidebarProps> = ({
                   >
                     <div className="w-36 rounded-md shadow-lg bg-white ring-1 ring-black/5 overflow-hidden">
                       <button
-                        onClick={handleDelete(id)}
+                        onClick={handleDeleteRequest(id)}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
                         type="button"
                       >
                         Delete thread
                       </button>
-                      {/* placeholder for future actions */}
                     </div>
                   </div>
                 )}
