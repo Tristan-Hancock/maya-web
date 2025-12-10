@@ -99,7 +99,7 @@ export async function fetchThreadHistory(
   limit = 50
 ): Promise<ChatMsg[]> {
   const headers = await authHeaderJSON();
-  const res = await fetch(`${API_BASE}/threads/chat/stage`, {
+  const res = await fetch(`${API_BASE}/threads/chat/prod`, {
     method: "POST",
     headers,
     body: JSON.stringify({ mode: "history", threadHandle, limit }),

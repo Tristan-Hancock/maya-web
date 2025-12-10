@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { PlusIcon, MessageIcon, CloseIcon } from "../icons/sidebaricons";
 import { useApp } from "../../appContext";
+import { fetchAuthSession } from "aws-amplify/auth";
 
 export interface SidebarProps {
   isOpen: boolean;
@@ -8,8 +9,11 @@ export interface SidebarProps {
   onNewChat: () => void;
   onSelectThread: (threadHandle: string) => void;
   onClose: () => void;
-  onDeleteThread?: (threadHandle: string) => void; // optional, will be called when delete is confirmed
+  onDeleteThread?: (threadHandle: string) => void; // optional callback
 }
+
+const API_BASE = import.meta.env.VITE_API_BASE_STAGING as string;
+const DELETE_PATH = "/delete/stage/threads";
 
 const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
@@ -40,6 +44,64 @@ const Sidebar: React.FC<SidebarProps> = ({
     onSelectThread(h);
   };
 
+  // ---- API delete helper (Lambda) ----
+  const apiDelete = async (threadHandle: string) => {
+    console.log("[DELETE] initiating for threadHandle:", threadHandle);
+    console.log("[DELETE] API_BASE:", API_BASE, "DELETE_PATH:", DELETE_PATH);
+
+    if (!API_BASE) {
+      console.error("[DELETE] missing API_BASE");
+      throw new Error("missing_api_base");
+    }
+
+    const { tokens } = await fetchAuthSession();
+    const idToken = tokens?.idToken?.toString();
+
+    console.log("[DELETE] auth session", {
+      hasTokens: !!tokens,
+      hasIdToken: !!idToken,
+    });
+
+    if (!idToken) {
+      console.error("[DELETE] missing idToken");
+      throw new Error("missing_token");
+    }
+
+    const url = `${API_BASE}${DELETE_PATH}`;
+    const body = {
+      threadHandle,
+      pk: `thread#${threadHandle}`,
+    };
+
+    console.log("[DELETE] request", {
+      url,
+      method: "DELETE",
+      body,
+    });
+
+    const resp = await fetch(url, {
+      method: "DELETE", // Lambda/router is allowing POST
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    const text = await resp.text();
+    console.log("[DELETE] raw response", resp.status, text);
+
+    if (!resp.ok) {
+      throw new Error(`delete_failed_${resp.status}`);
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {};
+    }
+  };
+
   // menu state for per-thread kebab menu
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
@@ -48,21 +110,34 @@ const Sidebar: React.FC<SidebarProps> = ({
     setOpenMenu((cur) => (cur === threadHandle ? null : threadHandle));
   };
 
-  const handleDelete = (threadHandle: string) => (e?: React.MouseEvent) => {
+  const handleDelete = (threadHandle: string) => async (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    // simple placeholder UX: confirm and call optional handler
-    const ok = window.confirm("Cannot delete at this moment , pending development.");
-    if (!ok) {
+
+    if (!window.confirm("Delete this chat?")) {
       setOpenMenu(null);
       return;
     }
-    if (onDeleteThread) onDeleteThread(threadHandle);
-    else {
-      // placeholder behavior: close menu and log
-      // eslint-disable-next-line no-console
-      console.log("delete thread (placeholder):", threadHandle);
+
+    try {
+      await apiDelete(threadHandle);
+
+      // optional parent callback
+      if (onDeleteThread) {
+        onDeleteThread(threadHandle);
+      }
+
+      // if the deleted one was active, clear it
+      if (activeThread === threadHandle) {
+        setActiveThread(null as any);
+      }
+
+      setOpenMenu(null);
+      await refreshThreads();
+    } catch (err) {
+      console.error("[DELETE] error:", err);
+      window.alert("Delete failed. Try again.");
+      setOpenMenu(null);
     }
-    setOpenMenu(null);
   };
 
   // close menu when clicking outside (global handler)
@@ -155,7 +230,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                       type="button"
                     >
                       {/* visible filled 3-dot icon (uses currentColor) */}
-                      <svg className="w-5 h-5 text-slate-700" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                      <svg
+                        className="w-5 h-5 text-slate-700"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true"
+                      >
                         <circle cx="5" cy="12" r="1.75" fill="currentColor" />
                         <circle cx="12" cy="12" r="1.75" fill="currentColor" />
                         <circle cx="19" cy="12" r="1.75" fill="currentColor" />
@@ -166,7 +247,10 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                 {/* menu popover (very small) */}
                 {openMenu === id && (
-                  <div className="absolute right-2 top-12 z-50" onClick={(e) => e.stopPropagation()}>
+                  <div
+                    className="absolute right-2 top-12 z-50"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <div className="w-36 rounded-md shadow-lg bg-white ring-1 ring-black/5 overflow-hidden">
                       <button
                         onClick={handleDelete(id)}
