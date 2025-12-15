@@ -8,7 +8,7 @@ export interface SidebarProps {
   onNewChat: () => void;
   onSelectThread: (threadHandle: string) => void;
   onClose: () => void;
-  onDeleteThread?: (threadHandle: string) => void; // optional, will be called when delete is confirmed
+  onDeleteThread?: (threadHandle: string) => void; // ⇐ used to trigger modal
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -21,17 +21,14 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { threads, activeThread, setActiveThread, refreshThreads } = useApp();
 
-  // track previous open state so we only refresh when opening
   const wasOpenRef = useRef<boolean>(false);
 
   useEffect(() => {
-    // On mount if sidebar already open, refresh once
     if (isOpen && !wasOpenRef.current) {
       void refreshThreads();
       wasOpenRef.current = true;
       return;
     }
-    // update ref when closed
     if (!isOpen) wasOpenRef.current = false;
   }, [isOpen, refreshThreads]);
 
@@ -48,21 +45,15 @@ const Sidebar: React.FC<SidebarProps> = ({
     setOpenMenu((cur) => (cur === threadHandle ? null : threadHandle));
   };
 
-  const handleDelete = (threadHandle: string) => (e?: React.MouseEvent) => {
+  // just request delete: AuthGate will show modal & call API
+  const handleDeleteRequest = (threadHandle: string) => (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    // simple placeholder UX: confirm and call optional handler
-    const ok = window.confirm("Cannot delete at this moment , pending development.");
-    if (!ok) {
-      setOpenMenu(null);
-      return;
-    }
-    if (onDeleteThread) onDeleteThread(threadHandle);
-    else {
-      // placeholder behavior: close menu and log
-      // eslint-disable-next-line no-console
-      console.log("delete thread (placeholder):", threadHandle);
-    }
     setOpenMenu(null);
+    if (onDeleteThread) {
+      onDeleteThread(threadHandle);
+    } else {
+      console.warn("[Sidebar] onDeleteThread not provided, cannot delete", threadHandle);
+    }
   };
 
   // close menu when clicking outside (global handler)
@@ -154,8 +145,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                       className="p-2 rounded-md hover:bg-slate-100 z-10 focus:outline-none"
                       type="button"
                     >
-                      {/* visible filled 3-dot icon (uses currentColor) */}
-                      <svg className="w-5 h-5 text-slate-700" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                      <svg
+                        className="w-5 h-5 text-slate-700"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true"
+                      >
                         <circle cx="5" cy="12" r="1.75" fill="currentColor" />
                         <circle cx="12" cy="12" r="1.75" fill="currentColor" />
                         <circle cx="19" cy="12" r="1.75" fill="currentColor" />
@@ -164,18 +160,20 @@ const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                 </button>
 
-                {/* menu popover (very small) */}
+                {/* small menu popover */}
                 {openMenu === id && (
-                  <div className="absolute right-2 top-12 z-50" onClick={(e) => e.stopPropagation()}>
+                  <div
+                    className="absolute right-2 top-12 z-50"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <div className="w-36 rounded-md shadow-lg bg-white ring-1 ring-black/5 overflow-hidden">
                       <button
-                        onClick={handleDelete(id)}
+                        onClick={handleDeleteRequest(id)}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50"
                         type="button"
                       >
                         Delete thread
                       </button>
-                      {/* placeholder for future actions */}
                     </div>
                   </div>
                 )}
