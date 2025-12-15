@@ -10,6 +10,8 @@ import SubscriptionPage from "./components/subscriptions/Subscription"; // ✅ i
 import { useApp } from "./appContext";
 import Sidebar from "./components/sidebar/sidebar";
 import SettingsModal from "./components/settings/settingsmodal";
+import ConfirmDeleteModal from "./components/sidebar/confirmdelete";
+import { fetchAuthSession } from "aws-amplify/auth";
 function MenuIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
@@ -19,6 +21,8 @@ function MenuIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
+  const API_BASE = import.meta.env.VITE_API_BASE as string;
+const DELETE_PATH = "/delete/prod/threads";
   const { route, user, doSignOut, loading, displayLabel, displayInitial } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
 
@@ -26,12 +30,13 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [leftOpen, setLeftOpen] = useState(false);
   const [showSubscription, setShowSubscription] = useState(false); // ✅ modal control
   const menuRef = useRef<HTMLDivElement>(null);
-  const { boot, ready } = useApp();
-
+  const { boot, ready, activeThread, setActiveThread, threads, refreshThreads } = useApp();
+  const [pendingDeleteThread, setPendingDeleteThread] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  
   useEffect(() => {
     if (route === "app" && user) boot();
   }, [route, user, boot]);
-  const {  activeThread, setActiveThread } = useApp();
 
 
   useEffect(() => {
@@ -64,6 +69,41 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     };
   }, [menuOpen]);
 
+  const deleteThreadLambda = async (threadHandle: string) => {
+    if (!API_BASE) throw new Error("missing_api_base");
+  
+    const { tokens } = await fetchAuthSession();
+    const idToken = tokens?.idToken?.toString();
+    if (!idToken) throw new Error("missing_token");
+  
+    const url = `${API_BASE}${DELETE_PATH}`;
+    const body = { threadHandle, pk: `thread#${threadHandle}` };
+  
+    console.log("[DELETE][AuthGate] request", { url, body });
+  
+    const resp = await fetch(url, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  
+    const text = await resp.text();
+    console.log("[DELETE][AuthGate] raw response", resp.status, text);
+  
+    if (!resp.ok) {
+      throw new Error(`delete_failed_${resp.status}`);
+    }
+  
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {};
+    }
+  };
+  
   const handleSignOut = async () => {
     try {
       // ✅ Hard reset all local data to ensure no stale threads or tokens remain
@@ -136,6 +176,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
               setLeftOpen(false);
             }}
             onClose={() => setLeftOpen(false)}
+            onDeleteThread={(thread) => setPendingDeleteThread(thread)}  // 👈 triggers modal in root
           />
         </div>
     
@@ -173,6 +214,8 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         setLeftOpen(false);
       }}
       onClose={() => setLeftOpen(false)}
+      onDeleteThread={(thread) => setPendingDeleteThread(thread)}
+
     />
   </div>
 </div>
@@ -294,6 +337,39 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
             }}
           />
         )}
+                {/* Confirm Delete Thread Modal */}
+                {pendingDeleteThread && (
+          <ConfirmDeleteModal
+            open={!!pendingDeleteThread}
+            deleting={deleting}
+            threadTitle={
+              threads.find((t) => t.threadHandle === pendingDeleteThread)?.title ||
+              "this chat"
+            }
+            onCancel={() => setPendingDeleteThread(null)}
+            onConfirm={async () => {
+              if (!pendingDeleteThread) return;
+              try {
+                setDeleting(true);
+                await deleteThreadLambda(pendingDeleteThread);
+
+                // clear active thread if it's the one deleted
+                if (activeThread === pendingDeleteThread) {
+                  setActiveThread(null as any);
+                }
+
+                await refreshThreads();
+              } catch (e) {
+                console.error("[DELETE][AuthGate] failed", e);
+                window.alert("Delete failed. Try again.");
+              } finally {
+                setDeleting(false);
+                setPendingDeleteThread(null);
+              }
+            }}
+          />
+        )}
+
       </div>
     );
     
