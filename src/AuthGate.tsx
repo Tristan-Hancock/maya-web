@@ -21,8 +21,8 @@ function MenuIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
-  const API_BASE = import.meta.env.VITE_API_BASE_STAGING as string;
-const DELETE_PATH = "/delete/stage/threads";
+  const API_BASE = import.meta.env.VITE_API_BASE as string;
+const DELETE_PATH = "/delete/prod/threads";
   const { route, user, doSignOut, loading, displayLabel, displayInitial } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
 
