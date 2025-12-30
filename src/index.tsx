@@ -8,6 +8,8 @@ import { AuthProvider } from "./auth/AuthContext";
 import AuthGate from "./AuthGate";
 import { BrowserRouter } from "react-router-dom";
 import { AppProvider } from "./appContext";
+import { HelmetProvider } from "react-helmet-async";
+
 Amplify.configure(awsconfig);
 
 const rootElement = document.getElementById("root");
@@ -18,18 +20,17 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-  <BrowserRouter>
-  <AppProvider>
-
-    <AuthProvider>
-      <AuthGate>
-        
-        <App />
-      </AuthGate>
-
-    </AuthProvider>
-    </AppProvider>
-
-    </BrowserRouter>
+    <HelmetProvider>
+      <BrowserRouter>
+        <AppProvider>
+          <AuthProvider>
+            <AuthGate>
+              <App />
+            </AuthGate>
+          </AuthProvider>
+        </AppProvider>
+      </BrowserRouter>
+    </HelmetProvider>
   </React.StrictMode>
 );
+
