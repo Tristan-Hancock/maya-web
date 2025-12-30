@@ -9,6 +9,7 @@ import { useRealtimeCall } from "./services/useRealtimeCall";
 import VoiceGateModal from "./components/voicemodel";
 import SubscriptionPage from "./components/subscriptions/Subscription";
 import { createVoiceSession, endVoiceSession } from "./services/openAIservice";
+import SEO from "./components/seo/seo";
 // Extend the local shape to allow an optional filename chip without
 // forcing a global types change.
 type ChatItem = ChatMessage & { attachmentName?: string | null };
@@ -318,6 +319,15 @@ const App: React.FC = () => {
   };
   
   return (
+
+
+    <>
+    <SEO
+      title="Private AI Health Support for PCOS, Menstrual Health & How You Feel"
+      description="Maya is a private, supportive space to talk through PCOS, menstrual health, and overwhelming health feelings — without judgment."
+      canonical="https://mayaovelia.com/"
+    />
+
     <div className="flex flex-col min-h-screen text-[#191D38] bg-[repeating-linear-gradient(to_bottom,#EAEBFF_0%,#FFFFFF_40%,#EAEBFF_80%)]">
         <div id="voice-audio-root" className="fixed w-0 h-0 overflow-hidden opacity-0 pointer-events-none" aria-hidden="true" />
 
@@ -387,7 +397,7 @@ const App: React.FC = () => {
 )}
 
     </div>
-    
+    </>
   );
 };
 
