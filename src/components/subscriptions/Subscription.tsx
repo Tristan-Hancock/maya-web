@@ -4,8 +4,15 @@ import PricingCard from "../../components/paymentui/PricingCards";
 import type { Tier } from "../../types";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { useApp } from "../../appContext"; // ← add
-
+import SEO from "../seo/seo"; // ← add
 type SubscriptionPageProps = { onClose?: () => void };
+
+<SEO
+  title="Pricing & Plans"
+  description="Choose a plan to talk privately with Maya through text or live voice, with flexible talk-time options."
+  noindex
+/>
+
 
 const tiers: Tier[] = [
   { name: "Free Tier", price: "$0", ctaText: "Start Free", planCode: "free",
@@ -71,6 +78,7 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onClose }) => {
   const currentPlanCode = sub?.plan_code ?? "free";
 
   return (
+
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="relative bg-gray-50 text-brand-dark rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
         <button
@@ -115,6 +123,7 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onClose }) => {
         </div>
       </div>
     </div>
+    
   );
 };
 
