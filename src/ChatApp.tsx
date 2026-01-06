@@ -327,6 +327,7 @@ const App: React.FC = () => {
       description="Maya is a private, supportive space to talk through PCOS, menstrual health, and overwhelming health feelings — without judgment."
       canonical="https://mayaovelia.com/"
     />
+  <meta name="robots" content="noindex, nofollow" />
 
     <div className="flex flex-col min-h-screen text-[#191D38] bg-[repeating-linear-gradient(to_bottom,#EAEBFF_0%,#FFFFFF_40%,#EAEBFF_80%)]">
         <div id="voice-audio-root" className="fixed w-0 h-0 overflow-hidden opacity-0 pointer-events-none" aria-hidden="true" />
