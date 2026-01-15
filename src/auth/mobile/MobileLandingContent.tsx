@@ -14,7 +14,6 @@ export default function MobileLanding({
 }: {
   onContinue: () => void;
 }) {
-  /* ------------------ AUDIO ------------------ */
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -30,7 +29,7 @@ export default function MobileLanding({
     }
   };
 
-  /* ------------------ TYPING TEXT ------------------ */
+  /* -------- typing text -------- */
   const phrases = useMemo(
     () => [
       "health companion.",
@@ -46,8 +45,8 @@ export default function MobileLanding({
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
+    const phrase = phrases[phraseIndex];
     const timeout = setTimeout(() => {
-      const phrase = phrases[phraseIndex];
       if (isDeleting) {
         setText((t) => t.slice(0, -1));
         if (text.length === 0) {
@@ -57,7 +56,7 @@ export default function MobileLanding({
       } else {
         setText(phrase.slice(0, text.length + 1));
         if (text.length === phrase.length) {
-          setTimeout(() => setIsDeleting(true), 1300);
+          setTimeout(() => setIsDeleting(true), 1200);
         }
       }
     }, isDeleting ? 40 : 80);
@@ -65,7 +64,7 @@ export default function MobileLanding({
     return () => clearTimeout(timeout);
   }, [text, isDeleting, phraseIndex, phrases]);
 
-  /* ------------------ QUESTIONS ------------------ */
+  /* -------- rotating questions -------- */
   const exampleQuestions = useMemo(
     () => [
       "How can I manage my PCOS symptoms?",
@@ -86,32 +85,27 @@ export default function MobileLanding({
     return () => clearInterval(interval);
   }, [exampleQuestions.length]);
 
-  /* ------------------ UI ------------------ */
   return (
-    <div className="min-h-screen flex flex-col bg-[linear-gradient(#EDEEFF,#FFFFFF)]">
+    <div className="min-h-screen bg-[linear-gradient(#EDEEFF,#FFFFFF)]">
       <audio ref={audioRef} src={mayavoiceIntro} onEnded={() => setIsPlaying(false)} />
 
       {/* Brand */}
-      <div className="text-center pt-8 pb-6">
+      <div className="text-center pt-8 pb-4">
         <h1
           className="font-extrabold text-[#1B2245]"
-          style={{
-            fontFamily: "Inter",
-            fontSize: "55px",
-            lineHeight: "24px",
-          }}
+          style={{ fontFamily: "Inter", fontSize: "55px", lineHeight: "24px" }}
         >
           Ovelia
         </h1>
       </div>
 
-      {/* Sheet */}
-      <div className="flex-1 bg-white rounded-t-[32px] px-6 pt-6 shadow-xl">
-        <h2 className="text-lg font-semibold leading-snug text-[#0F172A]">
+      {/* Seamless white surface */}
+      <div className="bg-white rounded-t-[32px] px-6 pt-6">
+        <h2 className="text-lg font-semibold text-[#0F172A] leading-snug">
           Meet Maya, your{" "}
           <span
             className="text-indigo-600 inline-block"
-            style={{ minWidth: "170px", whiteSpace: "nowrap" }}
+            style={{ minWidth: 180, whiteSpace: "nowrap" }}
           >
             {text}
           </span>
@@ -129,21 +123,17 @@ export default function MobileLanding({
             <PlayCircleIcon className="w-6 h-6 text-indigo-600" />
           )}
           <div className="text-left">
-            <div className="font-semibold text-indigo-800">
-              Hear from Maya
-            </div>
+            <div className="font-semibold text-indigo-800">Hear from Maya</div>
             <div className="text-xs text-indigo-600">
               Listen to a quick introduction.
             </div>
           </div>
         </button>
 
-        {/* Section title */}
-        <h3 className="mt-6 mb-3 font-medium text-sm text-[#0F172A]">
+        <h3 className="mt-6 mb-3 text-sm font-medium text-[#0F172A]">
           What Maya can help with :
         </h3>
 
-        {/* Feature card */}
         <div className="bg-[#F7F7FB] rounded-2xl p-4 space-y-3">
           <Feature
             icon={<HeartPulseIcon />}
@@ -167,14 +157,12 @@ export default function MobileLanding({
           />
         </div>
 
-        {/* Input preview */}
         <input
           disabled
           value={exampleQuestions[questionIndex]}
           className="mt-4 w-full border rounded-full px-4 py-3 text-sm text-gray-500"
         />
 
-        {/* CTA */}
         <button
           onClick={onContinue}
           className="mt-5 w-full rounded-xl py-3 bg-[#1B2245] text-white font-medium"
@@ -182,8 +170,7 @@ export default function MobileLanding({
           Login / sign up
         </button>
 
-        {/* Footer */}
-        <p className="text-[11px] text-center text-gray-500 mt-4">
+        <p className="text-[11px] text-center text-gray-500 mt-6 pb-6">
           Maya can make mistakes. Verify important information.
         </p>
       </div>
@@ -206,12 +193,8 @@ function Feature({
         {icon}
       </div>
       <div>
-        <div className="font-semibold text-sm text-[#0F172A]">
-          {title}
-        </div>
-        <div className="text-xs text-gray-600 leading-snug">
-          {desc}
-        </div>
+        <div className="font-semibold text-sm text-[#0F172A]">{title}</div>
+        <div className="text-xs text-gray-600 leading-snug">{desc}</div>
       </div>
     </div>
   );
