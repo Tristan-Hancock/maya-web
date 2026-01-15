@@ -23,7 +23,7 @@ export default function MobileAuthGate() {
 
   return (
     <MobileAuthShell onBack={() => setRoute("landing")}>
-      {route === "signIn" && <SignInForm />}
+    {route === "signIn" && <SignInForm variant="mobile" />}
       {route === "signUp" && <SignUpForm />}
       {route === "forgotPassword" && <ForgotPasswordForm />}
       {route === "confirmSignUp" && <ConfirmSignUpForm />}

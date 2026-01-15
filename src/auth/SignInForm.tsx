@@ -1,12 +1,14 @@
-// src/auth/SignInForm.tsx
-import React, { useState , useEffect} from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 
-export default function SignInForm() {
+export default function SignInForm({
+  variant = "desktop",
+}: {
+  variant?: "desktop" | "mobile";
+}) {
   const { doSignIn, setRoute, error, clearError, pendingEmail } = useAuth();
   const [email, setEmail] = useState<string>(pendingEmail ?? "");
   const [pwd, setPwd] = useState("");
-
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -26,24 +28,42 @@ export default function SignInForm() {
   }
 
   return (
-    <div className="w-full max-w-[420px] mx-auto px-4 sm:px-0 overflow-x-hidden">
-      <form onSubmit={onSubmit} className="space-y-4 w-full">
-        <h2 className="text-xl sm:text-2xl font-semibold text-[#1B2245]">Welcome</h2>
-        <p className="text-sm text-gray-600">Sign in to continue</p>
+    <div
+      className={`w-full mx-auto ${
+        variant === "mobile"
+          ? "max-w-none"
+          : "max-w-[420px] px-4 sm:px-0"
+      }`}
+    >
+      <form
+        onSubmit={onSubmit}
+        className={variant === "mobile" ? "space-y-5" : "space-y-4"}
+      >
+        {/* Desktop title only */}
+        {variant === "desktop" && (
+          <>
+            <h2 className="text-xl sm:text-2xl font-semibold text-[#1B2245]">
+              Welcome
+            </h2>
+            <p className="text-sm text-gray-600">Sign in to continue</p>
+          </>
+        )}
 
         {/* Email */}
         <input
-          className="w-full min-w-0 border rounded-lg p-3 outline-none focus:ring-2 focus:ring-[#BBBFFE]"
+          className={`w-full border rounded-xl p-4 text-base outline-none
+            focus:ring-2 focus:ring-[#BBBFFE]`}
           placeholder="Email address"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
 
-        {/* Password with visibility icon */}
+        {/* Password */}
         <div className="relative">
           <input
-            className="w-full min-w-0 border rounded-lg p-3 pr-10 outline-none focus:ring-2 focus:ring-[#BBBFFE]"
+            className={`w-full border rounded-xl p-4 pr-12 text-base outline-none
+              focus:ring-2 focus:ring-[#BBBFFE]`}
             placeholder="Password"
             type={showPwd ? "text" : "password"}
             value={pwd}
@@ -53,42 +73,46 @@ export default function SignInForm() {
             <button
               type="button"
               onClick={() => setShowPwd(!showPwd)}
-              className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-[#1B2245]"
-              aria-label={showPwd ? "Hide password" : "Show password"}
+              className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-500"
             >
-              {showPwd ? (
-                // eye-off
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-5 0-9.27-3.11-10.75-7.5A10.05 10.05 0 015.11 7.14M9.88 9.88a3 3 0 104.24 4.24" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18" />
-                </svg>
-              ) : (
-                // eye
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-              )}
+              {showPwd ? "🙈" : "👁️"}
             </button>
           )}
         </div>
 
-        {error && <p className="text-sm text-red-600 break-words">{error}</p>}
+        {error && (
+          <p className="text-sm text-red-600 leading-snug">{error}</p>
+        )}
 
         {/* Submit */}
         <button
           disabled={loading}
-          className="w-full rounded-lg p-3 bg-[#1B2245] text-white hover:opacity-90 disabled:opacity-60"
+          className={`w-full rounded-xl py-4 text-white font-medium
+            bg-[#1B2245] hover:opacity-90 disabled:opacity-60`}
         >
           {loading ? "Signing in…" : "Sign in"}
         </button>
 
-        {/* Footer */}
-        <div className="flex flex-col sm:flex-row gap-2 sm:justify-between text-sm text-[#1B2245]">
-          <button type="button" onClick={() => setRoute("signUp")} className="underline text-left">
+        {/* Footer links */}
+        <div
+          className={`text-sm text-[#1B2245] ${
+            variant === "mobile"
+              ? "flex justify-between pt-2"
+              : "flex flex-col sm:flex-row gap-2 sm:justify-between"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => setRoute("signUp")}
+            className="underline"
+          >
             Create account
           </button>
-          <button type="button" onClick={() => setRoute("forgotPassword")} className="underline text-left">
+          <button
+            type="button"
+            onClick={() => setRoute("forgotPassword")}
+            className="underline"
+          >
             Forgot password?
           </button>
         </div>
