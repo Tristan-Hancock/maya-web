@@ -30,12 +30,14 @@ export default function MobileAuthGate() {
    * (e.g. Cognito forces confirmSignUp)
    */
   useEffect(() => {
+    if (screen === "landing") return;
+  
     if (route === "signIn") setScreen("signIn");
     if (route === "signUp") setScreen("signUp");
     if (route === "confirmSignUp") setScreen("confirmSignUp");
     if (route === "forgotPassword") setScreen("forgotPassword");
-  }, [route]);
-
+  }, [route, screen]);
+  
   /* ------------------ BACK HANDLING ------------------ */
   const handleBack = () => {
     if (screen === "landing") return;

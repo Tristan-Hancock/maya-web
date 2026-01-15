@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   HeartPulseIcon,
   DocumentSearchIcon,
@@ -9,7 +9,7 @@ import {
 } from "../../components/icons/iconslist";
 import mayavoiceIntro from "../../assets/audio/mayain.mp3";
 
-export default function MobileLanding({
+export default function MobileLandingContent({
   onContinue,
 }: {
   onContinue: () => void;
@@ -29,7 +29,6 @@ export default function MobileLanding({
     }
   };
 
-  /* -------- typing text -------- */
   const phrases = useMemo(
     () => [
       "health companion.",
@@ -64,16 +63,12 @@ export default function MobileLanding({
     return () => clearTimeout(timeout);
   }, [text, isDeleting, phraseIndex, phrases]);
 
-  /* -------- rotating questions -------- */
-  const exampleQuestions = useMemo(
-    () => [
-      "How can I manage my PCOS symptoms?",
-      "Explain my recent lab report for me.",
-      "What are the best exercises for my luteal phase?",
-      "Suggest a meal plan for hormonal balance.",
-    ],
-    []
-  );
+  const exampleQuestions = [
+    "How can I manage my PCOS symptoms?",
+    "Explain my recent lab report for me.",
+    "What are the best exercises for my luteal phase?",
+    "Suggest a meal plan for hormonal balance.",
+  ];
 
   const [questionIndex, setQuestionIndex] = useState(0);
 
@@ -83,119 +78,73 @@ export default function MobileLanding({
       3500
     );
     return () => clearInterval(interval);
-  }, [exampleQuestions.length]);
+  }, []);
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(#EDEEFF,#FFFFFF)]">
-      <audio ref={audioRef} src={mayavoiceIntro} onEnded={() => setIsPlaying(false)} />
+    <div className="flex flex-col gap-4">
+      <audio ref={audioRef} src={mayavoiceIntro} />
 
-      {/* Brand */}
-      <div className="text-center pt-8 pb-4">
-        <h1
-          className="font-extrabold text-[#1B2245]"
-          style={{ fontFamily: "Inter", fontSize: "55px", lineHeight: "24px" }}
-        >
-          Ovelia
-        </h1>
-      </div>
+      <h2 className="text-lg font-semibold text-[#0F172A]">
+        Meet Maya, your{" "}
+        <span className="text-indigo-600 inline-block min-w-[180px]">
+          {text}
+        </span>
+        <span className="inline-block w-px h-4 bg-gray-400 ml-1 animate-pulse" />
+      </h2>
 
-      {/* Seamless white surface */}
-      <div className="bg-white rounded-t-[32px] px-6 pt-6">
-        <h2 className="text-lg font-semibold text-[#0F172A] leading-snug">
-          Meet Maya, your{" "}
-          <span
-            className="text-indigo-600 inline-block"
-            style={{ minWidth: 180, whiteSpace: "nowrap" }}
-          >
-            {text}
-          </span>
-          <span className="inline-block w-px h-4 bg-gray-400 ml-1 animate-pulse" />
-        </h2>
-
-        {/* Audio CTA */}
-        <button
-          onClick={togglePlay}
-          className="mt-4 flex items-center gap-3 p-3 rounded-xl bg-indigo-50 w-full"
-        >
-          {isPlaying ? (
-            <PauseCircleIcon className="w-6 h-6 text-indigo-600" />
-          ) : (
-            <PlayCircleIcon className="w-6 h-6 text-indigo-600" />
-          )}
-          <div className="text-left">
-            <div className="font-semibold text-indigo-800">Hear from Maya</div>
-            <div className="text-xs text-indigo-600">
-              Listen to a quick introduction.
-            </div>
+      <button
+        onClick={togglePlay}
+        className="flex items-center gap-3 p-3 rounded-xl bg-indigo-50"
+      >
+        {isPlaying ? (
+          <PauseCircleIcon className="w-6 h-6 text-indigo-600" />
+        ) : (
+          <PlayCircleIcon className="w-6 h-6 text-indigo-600" />
+        )}
+        <div>
+          <div className="font-semibold text-indigo-800">
+            Hear from Maya
           </div>
-        </button>
-
-        <h3 className="mt-6 mb-3 text-sm font-medium text-[#0F172A]">
-          What Maya can help with :
-        </h3>
-
-        <div className="bg-[#F7F7FB] rounded-2xl p-4 space-y-3">
-          <Feature
-            icon={<HeartPulseIcon />}
-            title="Expert Health insights"
-            desc="Get clear, empathetic answers about PCOS, menstrual health, and fitness."
-          />
-          <Feature
-            icon={<DocumentSearchIcon />}
-            title="Analyze Medical Reports"
-            desc="Upload prescriptions or lab results to get summaries and explanations."
-          />
-          <Feature
-            icon={<DumbbellIcon />}
-            title="Personalized Wellness"
-            desc="Receive guidance on fitness and nutrition tailored to your needs."
-          />
-          <Feature
-            icon={<WaveformIcon />}
-            title="Natural Voice Conversations"
-            desc="Speak with Maya naturally and listen to her helpful responses."
-          />
+          <div className="text-xs text-indigo-600">
+            Listen to a quick introduction.
+          </div>
         </div>
+      </button>
 
-        <input
-          disabled
-          value={exampleQuestions[questionIndex]}
-          className="mt-4 w-full border rounded-full px-4 py-3 text-sm text-gray-500"
-        />
+      <h3 className="text-sm font-medium text-[#0F172A] mt-2">
+        What Maya can help with :
+      </h3>
 
-        <button
-          onClick={onContinue}
-          className="mt-5 w-full rounded-xl py-3 bg-[#1B2245] text-white font-medium"
-        >
-          Login / sign up
-        </button>
-
-        <p className="text-[11px] text-center text-gray-500 mt-6 pb-6">
-          Maya can make mistakes. Verify important information.
-        </p>
+      <div className="bg-[#F7F7FB] rounded-2xl p-4 space-y-3">
+        <Feature icon={<HeartPulseIcon />} title="Expert Health insights" />
+        <Feature icon={<DocumentSearchIcon />} title="Analyze Medical Reports" />
+        <Feature icon={<DumbbellIcon />} title="Personalized Wellness" />
+        <Feature icon={<WaveformIcon />} title="Natural Voice Conversations" />
       </div>
+
+      <input
+        disabled
+        value={exampleQuestions[questionIndex]}
+        className="border rounded-full px-4 py-3 text-sm text-gray-500"
+      />
+
+      <button
+        onClick={onContinue}
+        className="rounded-xl py-3 bg-[#1B2245] text-white font-medium"
+      >
+        Login / sign up
+      </button>
     </div>
   );
 }
 
-function Feature({
-  icon,
-  title,
-  desc,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  desc: string;
-}) {
+function Feature({ icon, title }: { icon: React.ReactNode; title: string }) {
   return (
-    <div className="flex items-start gap-3">
+    <div className="flex items-center gap-3">
       <div className="bg-indigo-100 p-2 rounded-full text-indigo-600">
         {icon}
       </div>
-      <div>
-        <div className="font-semibold text-sm text-[#0F172A]">{title}</div>
-        <div className="text-xs text-gray-600 leading-snug">{desc}</div>
-      </div>
+      <div className="text-sm font-semibold">{title}</div>
     </div>
   );
 }

@@ -29,17 +29,17 @@ export default function SignInForm({
 
   return (
     <div className="w-full">
-      <form
-        onSubmit={onSubmit}
-        className="space-y-5"
-      >
+      <form onSubmit={onSubmit} className="space-y-4">
         {/* Desktop-only heading */}
         {variant === "desktop" && (
           <>
             <h2 className="text-xl font-semibold text-[#1B2245]">
               Welcome
             </h2>
-            <p className="text-sm text-gray-600">
+            <p
+              className="text-[15px] leading-[30px] text-[#6B7280]"
+              style={{ fontFamily: "Inter", fontWeight: 400 }}
+            >
               Sign in to continue
             </p>
           </>
@@ -85,10 +85,10 @@ export default function SignInForm({
           "
         />
 
-        {/* Error (fixed height so layout doesn’t jump) */}
-        <div className="min-h-[16px]">
+        {/* Error (reserved space, no jump) */}
+        <div className="min-h-[14px]">
           {error && (
-            <p className="text-xs text-red-600">
+            <p className="text-[12px] text-red-600 leading-tight">
               {error}
             </p>
           )}
@@ -104,17 +104,19 @@ export default function SignInForm({
             rounded-xl
             bg-[#1B2245]
             text-white
-            text-sm
-            font-medium
+            text-[16px]
+            font-semibold
+            leading-[30px]
             hover:opacity-90
             disabled:opacity-60
           "
+          style={{ fontFamily: "Inter" }}
         >
           {loading ? "Signing in…" : "Sign in"}
         </button>
 
         {/* Footer links */}
-        <div className="flex justify-between pt-2 text-sm text-[#1B2245]">
+        <div className="flex justify-between pt-1 text-sm text-[#1B2245]">
           <button
             type="button"
             onClick={() => setRoute("signUp")}
