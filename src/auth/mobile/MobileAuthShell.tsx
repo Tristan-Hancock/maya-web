@@ -1,5 +1,5 @@
 import React from "react";
-
+import OveliaLogo from "../../assets/Vector.svg";
 export default function MobileAuthShell({
   children,
   onBack,
@@ -66,16 +66,8 @@ export default function MobileAuthShell({
 
         {/* FOOTER (INSIDE SHEET) */}
         <div className="flex flex-col items-center pb-6 pt-8">
-          <svg
-            width="36"
-            height="36"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#1B2245"
-            strokeWidth="1.5"
-          >
-            <path d="M12 2C8 6 6 9 6 12a6 6 0 0012 0c0-3-2-6-6-10z" />
-          </svg>
+        <img src={OveliaLogo} alt="Ovelia" className="w-9 h-9" />
+
 
           <p className="text-xs text-center text-gray-500 mt-4">
             Maya can make mistakes. Verify important information.
