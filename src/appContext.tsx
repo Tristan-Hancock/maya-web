@@ -17,8 +17,8 @@ type AppState = {
 const C = createContext<AppState | null>(null);
 export const useApp = () => useContext(C)!;
 
-const API_BASE = import.meta.env.VITE_API_BASE_STAGING as string;
-const API_BASE_PAYMENTS = import.meta.env.VITE_API_BILLING_STRIPE_STAGE as string;
+const API_BASE = import.meta.env.VITE_API_BASE as string;
+const API_BASE_PAYMENTS = import.meta.env.VITE_API_BILLING_STRIPE_PROD as string;
 
 function flagsFrom(sub: Subscription | null): FeatureFlags {
   const lim = sub?.limits || {};
@@ -84,9 +84,9 @@ const refreshThreads = useCallback(async (): Promise<ThreadMeta[]> => {
     let j: any = {};
     try { j = JSON.parse(txt); } catch (e) {
       console.error("[threads] JSON parse error:", e);
-      throw new Error("Invalid JSON from /threads/stage");
+      throw new Error("Invalid JSON from /threads/prod");
     }
-    if (!res.ok) throw new Error(j?.error || `failed /threads/stage (${res.status})`);
+    if (!res.ok) throw new Error(j?.error || `failed /threads/prod (${res.status})`);
   
     const list: ThreadMeta[] = (j.threads || j.items || []).map((it:any)=>({
       threadHandle: it.threadHandle || it.thread_handle || it.handle || it.pk?.replace?.(/^thread#/, "") || "",
