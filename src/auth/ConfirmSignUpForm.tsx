@@ -1,93 +1,165 @@
-// src/auth/ConfirmSignUpForm.tsx
 import React, { useState, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 
 export default function ConfirmSignUpForm() {
-  const { doConfirmSignUp, doResendCode, setRoute, error, clearError , pendingEmail, setPendingEmail} = useAuth();
-  const [email, setEmail] = useState("");
-  // store the email used for signup (so confirm step doesn't need re-entry)
+  const {
+    doConfirmSignUp,
+    doResendCode,
+    setRoute,
+    error,
+    clearError,
+    pendingEmail,
+    setPendingEmail,
+  } = useAuth();
 
+  const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    // keep local email in sync if pendingEmail changes
     if (pendingEmail) setEmail(pendingEmail);
   }, [pendingEmail]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    clearError(); setMsg(null);
+    clearError();
+    setMsg(null);
     setLoading(true);
     try {
-      // If pendingEmail exists, pass null so AuthContext uses it; otherwise pass the typed email
       const emailArg = pendingEmail ? null : email;
       await doConfirmSignUp(emailArg, code);
-      setMsg("Email confirmed! You can sign in now.");
-      // after successful confirm, AuthContext routes to signIn and keeps pendingEmail for prefill
-    } catch (err) {
-      // error handled via context.error
+      setMsg("Email confirmed. You can sign in now.");
     } finally {
       setLoading(false);
     }
   }
 
   async function resend() {
-    clearError(); setMsg(null);
+    clearError();
+    setMsg(null);
     try {
       const emailArg = pendingEmail ? null : email;
       await doResendCode(emailArg);
-      setMsg("Code sent.");
-      // ensure the pendingEmail is stored if user typed it
+      setMsg("Confirmation code sent.");
       if (!pendingEmail && email) setPendingEmail(email);
-    } catch (err) {
-      // error shown via context.error
-    }
+    } catch {}
   }
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      <h2 className="text-xl font-semibold text-[#1B2245]">Confirm your email</h2>
+      {/* Instruction */}
+      {pendingEmail && (
+        <p className="text-[15px] leading-[24px] text-[#6B7280]">
+          Enter the confirmation code sent to{" "}
+          <span className="font-medium text-[#0F172A]">
+            {pendingEmail}
+          </span>
+        </p>
+      )}
 
-      {pendingEmail ? (
-        <div className="text-sm text-gray-700">
-          Enter the confirmation code sent to <span className="font-medium">{pendingEmail}</span>
-        </div>
-      ) : (
+      {/* Email (only if missing) */}
+      {!pendingEmail && (
         <input
-          className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-[#BBBFFE]"
-          placeholder="Email address"
           type="email"
+          placeholder="Email address"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          className="
+            w-full
+            h-[52px]
+            px-4
+            rounded-xl
+            border
+            text-sm
+            text-[#0F172A]
+            placeholder-gray-400
+            outline-none
+            focus:ring-2 focus:ring-[#BBBFFE]
+          "
         />
       )}
 
+      {/* Code */}
       <input
-        className="w-full border rounded-lg p-3 outline-none focus:ring-2 focus:ring-[#BBBFFE]"
+        type="text"
         placeholder="Confirmation code"
         value={code}
         onChange={(e) => setCode(e.target.value)}
+        className="
+          w-full
+          h-[52px]
+          px-4
+          rounded-xl
+          border
+          text-sm
+          text-[#0F172A]
+          placeholder-gray-400
+          outline-none
+          focus:ring-2 focus:ring-[#BBBFFE]
+        "
       />
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {msg && <p className="text-sm text-green-700">{msg}</p>}
+      {/* Messages (fixed space) */}
+      <div className="min-h-[16px]">
+        {error && (
+          <p className="text-xs text-red-600">
+            {error}
+          </p>
+        )}
+        {!error && msg && (
+          <p className="text-xs text-green-600">
+            {msg}
+          </p>
+        )}
+      </div>
 
-      <div className="flex gap-2">
+      {/* Actions */}
+      <div className="flex gap-3">
         <button
+          type="submit"
           disabled={loading}
-          className="flex-1 rounded-lg p-3 bg-[#1B2245] text-white hover:opacity-90 disabled:opacity-60"
+          className="
+            flex-1
+            h-[52px]
+            rounded-xl
+            bg-[#1B2245]
+            text-white
+            text-[16px]
+            font-semibold
+            leading-[30px]
+            hover:opacity-90
+            disabled:opacity-60
+          "
+          style={{ fontFamily: "Inter" }}
         >
           {loading ? "Confirming…" : "Confirm"}
         </button>
-        <button type="button" onClick={resend} className="flex-1 rounded-lg p-3 border">
+
+        <button
+          type="button"
+          onClick={resend}
+          className="
+            flex-1
+            h-[52px]
+            rounded-xl
+            border
+            text-sm
+            text-[#1B2245]
+            hover:bg-gray-50
+          "
+        >
           Resend
         </button>
       </div>
 
-      <div className="text-sm text-center">
-        <button type="button" onClick={() => setRoute("signIn")} className="underline text-[#1B2245]">
+      {/* Footer link */}
+      <div className="pt-2 text-center">
+        <button
+          type="button"
+          onClick={() => setRoute("signIn")}
+          className="text-sm underline text-[#1B2245]"
+        >
           Back to sign in
         </button>
       </div>

@@ -12,6 +12,10 @@ import Sidebar from "./components/sidebar/sidebar";
 import SettingsModal from "./components/settings/settingsmodal";
 import ConfirmDeleteModal from "./components/sidebar/confirmdelete";
 import { fetchAuthSession } from "aws-amplify/auth";
+import { useIsMobile } from "./hooks/useIsMobile";
+import MobileAuthGate from "./auth/mobile/MobileAuthGate";
+
+
 function MenuIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
@@ -21,8 +25,11 @@ function MenuIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 export default function AuthGate({ children }: { children: React.ReactNode }) {
-  const API_BASE = import.meta.env.VITE_API_BASE as string;
+
+const isMobile = useIsMobile();
+const API_BASE = import.meta.env.VITE_API_BASE as string;
 const DELETE_PATH = "/delete/prod/threads";
+
   const { route, user, doSignOut, loading, displayLabel, displayInitial } = useAuth();
   const [showSettings, setShowSettings] = useState(false);
 
@@ -139,11 +146,17 @@ const DELETE_PATH = "/delete/prod/threads";
         <div className="text-center text-[#1B2245]">Loading…</div>
       </AuthShell>
     );
-
-  if (route === "app" && user ) {
+  
+  // 👇 ADD THIS BLOCK (mobile auth only)
+  if (!user && isMobile) {
+    return <MobileAuthGate />;
+  }
+  
+  // 👇 EVERYTHING BELOW STAYS UNCHANGED
+  if (route === "app" && user) {
     const username = displayLabel || "User";
     const initial = displayInitial || "U";
-
+  
     if (route === "app" && user && !ready) {
       return (
         <AuthShell>
