@@ -91,17 +91,17 @@ const PricingCard: React.FC<PricingCardProps> = ({
         isPopular ? "bg-gray-900 ring-gray-900" : "bg-white ring-gray-200"
       }`}
       style={{
-        width: 270,
-        minHeight: 430,
+        width: 300,                 // ⬅ increased for visual parity
+        minHeight: 480,             // ⬅ stable CTA alignment
         borderRadius: 20,
-        padding: "28px 24px",
+        padding: "32px 28px",
       }}
     >
       {/* Close */}
       {onClose && (
         <button
           onClick={onClose}
-          className={`absolute top-3 right-3 rounded-lg px-2 py-1 text-sm ${
+          className={`absolute top-4 right-4 rounded-lg px-2 py-1 text-sm ${
             isPopular
               ? "text-gray-300 hover:text-white hover:bg-white/10"
               : "text-gray-500 hover:bg-gray-100"
@@ -122,7 +122,7 @@ const PricingCard: React.FC<PricingCardProps> = ({
 
       {/* TITLE */}
       <h3
-        className={`mt-4 text-center text-xl font-semibold ${
+        className={`mt-5 text-center text-xl font-semibold ${
           isPopular ? "text-white" : "text-gray-900"
         }`}
       >
@@ -130,7 +130,7 @@ const PricingCard: React.FC<PricingCardProps> = ({
       </h3>
 
       {/* PRICE */}
-      <div className="mt-3 text-center">
+      <div className="mt-4 text-center">
         <div className="flex items-baseline justify-center gap-1">
           <span
             className={`text-4xl font-bold ${
@@ -141,14 +141,12 @@ const PricingCard: React.FC<PricingCardProps> = ({
           </span>
           <span className="text-sm text-gray-400">/month (USD)</span>
         </div>
-        <div className="mt-1 text-sm text-gray-400">
-          billed yearly
-        </div>
+        <div className="mt-1 text-sm text-gray-400">billed yearly</div>
       </div>
 
       {/* STATEMENT */}
       <p
-        className={`mt-4 text-center text-sm ${
+        className={`mt-5 text-center text-sm leading-6 ${
           isPopular ? "text-gray-300" : "text-gray-600"
         }`}
       >
@@ -156,11 +154,15 @@ const PricingCard: React.FC<PricingCardProps> = ({
       </p>
 
       {/* DIVIDER */}
-      <div className="mt-4 h-px w-full bg-gray-200" />
+      <div
+        className={`mt-6 mb-5 h-px w-full ${
+          isPopular ? "bg-white/20" : "bg-gray-200"
+        }`}
+      />
 
       {/* FEATURES */}
       <ul
-        className={`mt-4 flex-1 space-y-3 text-sm ${
+        className={`flex-1 space-y-3 text-sm ${
           isPopular ? "text-gray-300" : "text-gray-700"
         }`}
       >
@@ -180,7 +182,7 @@ const PricingCard: React.FC<PricingCardProps> = ({
       <button
         onClick={handleSubscription}
         disabled={isCurrent || isLoading}
-        className={`mt-4 w-full rounded-full py-2.5 text-sm font-semibold transition ${
+        className={`mt-6 w-full rounded-full py-3 text-sm font-semibold transition ${
           isCurrent
             ? "border border-gray-400 text-gray-400 cursor-default"
             : isPopular
