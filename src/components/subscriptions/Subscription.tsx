@@ -5,6 +5,10 @@ import type { Tier } from "../../types";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { useApp } from "../../appContext"; // ← add
 import SEO from "../seo/seo"; // ← add
+import LeafIcon from "../../assets/leaf.svg";
+import DropIcon from  "../../assets/drop.svg";
+import AudienceIcon from "../../assets/t4.svg";
+import OveliaIcon from "../../assets/oveliatier3.svg";
 type SubscriptionPageProps = { onClose?: () => void };
 
 <SEO
@@ -15,18 +19,53 @@ type SubscriptionPageProps = { onClose?: () => void };
 
 
 const tiers: Tier[] = [
-  { name: "Free Tier", price: "$0", ctaText: "Start Free", planCode: "free",
-    features: ["5 Monthly Prompts", "1 Image Upload", "1 Document Upload", "3 Threads", "Talk to Maya: No"] },
-  { name: "Tier 1", price: "$12.99", ctaText: "Subscribe", planCode: "tier1",
-    features: ["20 Monthly Prompts", "4 Image Uploads", "3 Document Uploads", "6 Threads", "Talk to Maya: No"] },
-  { name: "Tier 2", price: "$18.99", ctaText: "Subscribe", planCode: "tier2", popular: true,
-    features: ["45 Monthly Prompts", "8 Image Uploads", "6 Document Uploads", "12 Threads", "Talk to Maya: Yes"] },
-  { name: "Tier 3", price: "$39.99", ctaText: "Subscribe", planCode: "tier3",
-    features: ["100 Monthly Prompts", "12 Image Uploads", "8 Document Uploads", "20 Threads", "Talk to Maya: Yes"] },
-  { name: "Enterprise Software", price: "Contact Us", ctaText: "Get in Touch", planCode: "enterprise",
-    features: ["Custom Monthly Prompts","Custom Upload Limits","Unlimited Threads","Dedicated Support","Talk to Maya: Yes"] },
-];
+  {
+    name: "Starter",
+    planCode: "free",
+    price: "$0",
+    statement: "For those getting started with Maya",
+    features: [
+      "5 Monthly Prompts",
+      "1 Image Upload",
+      "1 Document Upload",
+      "3 Threads",
+      "Talk to Maya: No",
+    ],
+    ctaText: "Current Plan",
+    icon: LeafIcon,
+  },
+  {
+    name: "Tier 1",
+    planCode: "tier1",
+    price: "$12.99",
+    statement: "For better experience with Maya",
+    features: ["20 Monthly Prompts", "4 Image Uploads", "3 Document Uploads", "6 Threads", "Talk to Maya: No"] ,
+    ctaText: "Upgrade",
+    icon: DropIcon,
+  },
+  {
+    name: "Tier 2",
+    planCode: "tier2",
+    price: "$18.99",
+    statement: "For the best experience with Maya",
+    features: ["45 Monthly Prompts", "8 Image Uploads", "6 Document Uploads", "12 Threads", "Talk to Maya: Yes"] ,
+    ctaText: "Upgrade",
+    icon: OveliaIcon,
+    popular: true,
+  },
+{
+  name: "Tier 3",
+  planCode: "tier3",
+  price: "$39.99",
+  statement: "For the best experience with Maya",
+  features: ["100 Monthly Prompts", "12 Image Uploads", "8 Document Uploads", "20 Threads", "Talk to Maya: Yes"] ,
+  ctaText: "Upgrade",
+  icon: AudienceIcon,
+  popular: true,
+}
 
+
+];
 const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onClose }) => {
   const BASE = (import.meta as any).env?.VITE_API_BILLING_STRIPE_PROD as string;
   const { sub } = useApp(); // ← current subscription from context
@@ -37,10 +76,10 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onClose }) => {
       return;
     }
   
-    if (tier.planCode === "enterprise") {
-      alert("For Enterprise Software, please connect with us at info@ovelia.health");
-      return;
-    }
+    // if (tier.planCode === "enterprise") {
+    //   alert("For Enterprise Software, please connect with us at info@ovelia.health");
+    //   return;
+    // }
   
     const { tokens } = await fetchAuthSession();
     const idToken = tokens?.idToken?.toString();
@@ -79,30 +118,72 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onClose }) => {
 
   return (
 
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="relative bg-gray-50 text-brand-dark rounded-3xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+
+<div
+  className="relative text-brand-dark shadow-2xl w-[1308px] h-[785px] overflow-hidden"
+  style={{
+    borderRadius: "20px",
+    background: "linear-gradient(107.56deg, #FFFFFF 0.19%, #C2BBF2 99.81%)",
+  }}
+>
+
         <button
           type="button"
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-full p-2 transition"
           aria-label="Close subscription modal"
         >
-          ✕
+          X
         </button>
 
-        <div className="mx-auto max-w-7xl px-6 pt-16 pb-8 text-center">
-          <h2 className="text-base font-semibold leading-7 text-indigo-600">Pricing</h2>
-          <p className="mt-2 text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">The right plan for you</p>
-          <p className="mt-2 text-sm text-gray-500">
+        <div className="mx-auto max-w-7xl  pt-2 text-center">
+        <div className="mx-auto max-w-3xl  text-center">
+  <h2
+    className="mx-auto"
+    style={{
+      fontFamily: "Inter",
+      fontWeight: 800,
+      fontSize: "24px",
+      lineHeight: "24px",
+      color: "#4F47E6",
+    }}
+  >
+    Pricing
+  </h2>
+
+  <h1
+    className="mt-4"
+    style={{
+      fontFamily: "Inter",
+      fontWeight: 800,
+      fontSize: "55px",
+      lineHeight: "1.05",
+      color: "#0F1A3AE5",
+    }}
+  >
+    The Right Plan for You
+  </h1>
+</div>
+
+         
+         
+         
+         
+         
+          <p className="mt-2 text-sm text-gray-500 ">
             Current plan: <span className="font-semibold">{currentPlanCode}</span>
           </p>
-          <p className="mt-4 mx-auto max-w-2xl text-lg leading-8 text-gray-600">Start for free and upgrade anytime.</p>
+
+
+
+          {/* <p className="mt-4 mx-auto max-w-2xl text-lg leading-8 text-gray-600">Start for free and upgrade anytime.</p> */}
         </div>
 
-        <div className="flow-root bg-white pb-16 sm:pb-24 rounded-b-3xl">
-          <div className="mx-auto max-w-7xl px-6 lg:px-8">
-            <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-              {tiers.map((tier) => (
+        <div className="flow-root pb-16 sm:pb-24 rounded-b-3xl pt-8">
+        <div className="mx-auto px-8">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {tiers.map((tier) => (
                 <PricingCard
                   key={tier.planCode}
                   tier={tier}
@@ -115,7 +196,7 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onClose }) => {
                   }}                                                // ← new
                   onSubscribe={onSubscribe}
                   onManage={onManage}                               // ← new
-                  onClose={onClose}
+                  // onClose={onClose}
                 />
               ))}
             </div>

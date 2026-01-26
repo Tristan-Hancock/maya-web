@@ -9,16 +9,17 @@ export interface ChatMessage {
 
 
 // src/types.ts
-export type PlanCode = "free" | "tier1" | "tier2" | "tier3" | "enterprise";
+export type PlanCode = "free" | "tier1" | "tier2" | "tier3" ;//| "enterprise" ;
 export type SubscriptionStatus = "none" | "active" | "past_due" | "cancel_at_period_end" | "canceled";
 
 export interface Tier {
   name: string;                // display name
   planCode: PlanCode;          // "free" | "tier1" | "tier2" | "tier3"
-  price: string;               // e.g. "$0", "$6/mo"
-  blurb?: string;              // short tagline
-  features: string[];          // bullet points shown on card
+  price: string;               // e.g. "$0", "$12.99"
+  statement: string;           // sentence under price
+  features: string[];          // bullet points
   ctaText: string;             // button text
+  icon: string;                // path to icon asset
   popular?: boolean;           // highlights the card
 }
 
