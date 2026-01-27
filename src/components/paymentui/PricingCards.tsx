@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useMemo, useState , useEffect } from "react";
 import type { Tier } from "../../types";
 import { CheckIcon } from "../../components/icons/sidebaricons";
 
@@ -20,14 +20,14 @@ type PricingCardProps = {
 
 const PLAN_ORDER = ["free", "tier1", "tier2", "tier3"];
 
-function fmtDate(sec: number) {
-  if (!sec) return "";
-  return new Date(sec * 1000).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
+// function fmtDate(sec: number) {
+//   if (!sec) return "";
+//   return new Date(sec * 1000).toLocaleDateString(undefined, {
+//     year: "numeric",
+//     month: "short",
+//     day: "numeric",
+//   });
+// }
 
 const PricingCard: React.FC<PricingCardProps> = ({
   tier,
@@ -78,102 +78,85 @@ const PricingCard: React.FC<PricingCardProps> = ({
     }
   }, [isSuccess, onClose]);
 
-  const showCancelChip = isCurrent && subMeta.cancel_at > 0;
-  const showRenewChip =
-    isCurrent &&
-    !showCancelChip &&
-    subMeta.current_period_end > 0 &&
-    currentPlanCode !== "free";
+  // const showCancelChip = isCurrent && subMeta.cancel_at > 0;
+  // const showRenewChip =
+  //   isCurrent &&
+  //   !showCancelChip &&
+  //   subMeta.current_period_end > 0 &&
+  //   currentPlanCode !== "free";
 
   return (
     <div
-      className={`relative flex flex-col ring-1 ${
-        isPopular ? "bg-gray-900 ring-gray-900" : "bg-white ring-gray-200"
-      }`}
-      style={{
-        width: 300,                 // ⬅ increased for visual parity
-        minHeight: 480,             // ⬅ stable CTA alignment
-        borderRadius: 20,
-        padding: "32px 28px",
-      }}
+      className={`
+        w-full
+        sm:w-[300px]
+        flex flex-col
+        rounded-2xl
+        ring-1
+        ${
+          isPopular
+            ? "bg-gray-900 ring-gray-900"
+            : "bg-white ring-gray-200"
+        }
+        p-6
+      `}
     >
-      {/* Close */}
-      {onClose && (
-        <button
-          onClick={onClose}
-          className={`absolute top-4 right-4 rounded-lg px-2 py-1 text-sm ${
-            isPopular
-              ? "text-gray-300 hover:text-white hover:bg-white/10"
-              : "text-gray-500 hover:bg-gray-100"
-          }`}
-        >
-          ✕
-        </button>
-      )}
-
-      {/* ICON */}
+      {/* Icon */}
       <div className="flex justify-center">
-        <img
-          src={tier.icon}
-          alt=""
-          className={`h-10 w-10 ${isPopular ? "opacity-90" : ""}`}
-        />
+        <img src={tier.icon} className="h-10 w-10" />
       </div>
 
-      {/* TITLE */}
+      {/* Title */}
       <h3
-        className={`mt-5 text-center text-xl font-semibold ${
+        className={`mt-4 text-center text-xl font-semibold ${
           isPopular ? "text-white" : "text-gray-900"
         }`}
       >
         {tier.name}
       </h3>
 
-      {/* PRICE */}
+      {/* Price */}
       <div className="mt-4 text-center">
-        <div className="flex items-baseline justify-center gap-1">
-          <span
-            className={`text-4xl font-bold ${
-              isPopular ? "text-white" : "text-gray-900"
-            }`}
-          >
-            {tier.price}
-          </span>
-          <span className="text-sm text-gray-400">/month (USD)</span>
-        </div>
-        <div className="mt-1 text-sm text-gray-400">billed yearly</div>
+        <span
+          className={`text-4xl font-bold ${
+            isPopular ? "text-white" : "text-gray-900"
+          }`}
+        >
+          {tier.price}
+        </span>
+        <span className="ml-1 text-sm text-gray-400">/month</span>
+        <div className="text-sm text-gray-400">billed yearly</div>
       </div>
 
-      {/* STATEMENT */}
+      {/* Statement */}
       <p
-        className={`mt-5 text-center text-sm leading-6 ${
+        className={`mt-4 text-center text-sm ${
           isPopular ? "text-gray-300" : "text-gray-600"
         }`}
       >
         {tier.statement}
       </p>
 
-      {/* DIVIDER */}
       <div
-        className={`mt-6 mb-5 h-px w-full ${
+        className={`my-5 h-px ${
           isPopular ? "bg-white/20" : "bg-gray-200"
         }`}
       />
 
-      {/* FEATURES */}
+      {/* Features */}
       <ul
         className={`flex-1 space-y-3 text-sm ${
           isPopular ? "text-gray-300" : "text-gray-700"
         }`}
       >
-        {tier.features.map((feature) => (
-          <li key={feature} className="flex items-start gap-3">
+        {tier.features.map((f) => (
+          <li key={f} className="flex gap-3">
             <CheckIcon
-              className={`h-5 w-5 shrink-0 ${
+              className={`h-5 w-5 ${
                 isPopular ? "text-white" : "text-indigo-600"
               }`}
             />
-            <span>{feature}</span>
+            <span>{f}</span>
           </li>
         ))}
       </ul>
@@ -182,15 +165,18 @@ const PricingCard: React.FC<PricingCardProps> = ({
       <button
         onClick={handleSubscription}
         disabled={isCurrent || isLoading}
-        className={`mt-6 w-full rounded-full py-3 text-sm font-semibold transition ${
-          isCurrent
-            ? "border border-gray-400 text-gray-400 cursor-default"
-            : isPopular
-            ? "bg-indigo-600 text-white hover:bg-indigo-500"
-            : "border border-indigo-400 text-indigo-600 hover:border-indigo-500"
-        }`}
+        className={`
+          mt-6 w-full rounded-full py-3 text-sm font-semibold transition
+          ${
+            isCurrent
+              ? "border border-gray-400 text-gray-400"
+              : isPopular
+              ? "bg-indigo-600 text-white hover:bg-indigo-500"
+              : "border border-indigo-400 text-indigo-600 hover:border-indigo-500"
+          }
+        `}
       >
-        {isLoading ? "Processing..." : ctaLabel}
+        {isLoading ? "Processing…" : ctaLabel}
       </button>
     </div>
   );

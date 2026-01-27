@@ -1,12 +1,12 @@
-// Subscription.tsx
-import React from "react";
+import React, { useEffect, useRef, useState } from "react"; // add useMemo to continue 
 import PricingCard from "../../components/paymentui/PricingCards";
 import type { Tier } from "../../types";
 import { fetchAuthSession } from "aws-amplify/auth";
-import { useApp } from "../../appContext"; // ← add
-import SEO from "../seo/seo"; // ← add
+import { useApp } from "../../appContext";
+import SEO from "../seo/seo";
+
 import LeafIcon from "../../assets/leaf.svg";
-import DropIcon from  "../../assets/drop.svg";
+import DropIcon from "../../assets/drop.svg";
 import AudienceIcon from "../../assets/t4.svg";
 import OveliaIcon from "../../assets/oveliatier3.svg";
 type SubscriptionPageProps = { onClose?: () => void };
@@ -18,7 +18,7 @@ type SubscriptionPageProps = { onClose?: () => void };
 />
 
 
-const tiers: Tier[] = [
+const TIERS: Tier[] = [
   {
     name: "Starter",
     planCode: "free",
@@ -39,7 +39,13 @@ const tiers: Tier[] = [
     planCode: "tier1",
     price: "$12.99",
     statement: "For better experience with Maya",
-    features: ["20 Monthly Prompts", "4 Image Uploads", "3 Document Uploads", "6 Threads", "Talk to Maya: No"] ,
+    features: [
+      "20 Monthly Prompts",
+      "4 Image Uploads",
+      "3 Document Uploads",
+      "6 Threads",
+      "Talk to Maya: No",
+    ],
     ctaText: "Upgrade",
     icon: DropIcon,
   },
@@ -48,54 +54,108 @@ const tiers: Tier[] = [
     planCode: "tier2",
     price: "$18.99",
     statement: "For the best experience with Maya",
-    features: ["45 Monthly Prompts", "8 Image Uploads", "6 Document Uploads", "12 Threads", "Talk to Maya: Yes"] ,
+    features: [
+      "45 Monthly Prompts",
+      "8 Image Uploads",
+      "6 Document Uploads",
+      "12 Threads",
+      "Talk to Maya: Yes",
+    ],
     ctaText: "Upgrade",
     icon: OveliaIcon,
     popular: true,
   },
-{
-  name: "Tier 3",
-  planCode: "tier3",
-  price: "$39.99",
-  statement: "For the best experience with Maya",
-  features: ["100 Monthly Prompts", "12 Image Uploads", "8 Document Uploads", "20 Threads", "Talk to Maya: Yes"] ,
-  ctaText: "Upgrade",
-  icon: AudienceIcon,
-  popular: true,
+  {
+    name: "Tier 3",
+    planCode: "tier3",
+    price: "$39.99",
+    statement: "For power users and heavy usage",
+    features: [
+      "100 Monthly Prompts",
+      "12 Image Uploads",
+      "8 Document Uploads",
+      "20 Threads",
+      "Talk to Maya: Yes",
+    ],
+    ctaText: "Upgrade",
+    icon: AudienceIcon,
+  },
+];
+
+/* --------------------- MOBILE DETECTOR --------------------- */
+
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < breakpoint : false
+  );
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < breakpoint);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [breakpoint]);
+
+  return isMobile;
 }
 
+/* --------------------- COMPONENT --------------------- */
 
-];
 const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onClose }) => {
+  const { sub } = useApp();
   const BASE = (import.meta as any).env?.VITE_API_BILLING_STRIPE_PROD as string;
-  const { sub } = useApp(); // ← current subscription from context
+
+  const isMobile = useIsMobile();
+  const currentPlanCode = sub?.plan_code ?? "free";
+
+  /** 🔑 REF MUST BE INSIDE COMPONENT */
+  const tier2Ref = useRef<HTMLDivElement | null>(null);
+
+  /* ------------------ AUTO SCROLL (MOBILE ONLY) ------------------ */
+
+  useEffect(() => {
+    if (!isMobile) return;
+    if (!tier2Ref.current) return;
+  
+    // allow layout + images to settle
+    setTimeout(() => {
+      tier2Ref.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",   // ✅ CRITICAL CHANGE
+        inline: "nearest",
+      });
+    }, 50);
+  }, [isMobile]);
+  
+
+  /* ------------------ SUBSCRIBE ------------------ */
 
   const onSubscribe = async (tier: Tier) => {
     if (tier.planCode === "free") {
       onClose?.();
       return;
     }
-  
-    // if (tier.planCode === "enterprise") {
-    //   alert("For Enterprise Software, please connect with us at info@ovelia.health");
-    //   return;
-    // }
-  
+
     const { tokens } = await fetchAuthSession();
     const idToken = tokens?.idToken?.toString();
     if (!idToken) throw new Error("Not authenticated");
-  
-    const url = `${String(BASE).replace(/\/$/, "")}/billing/stripe/checkout`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
-      body: JSON.stringify({ plan_code: tier.planCode }),
-    });
-  
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.error || `Checkout failed (${res.status})`);
-    if (!data?.url) throw new Error("Checkout URL missing");
-  
+
+    const res = await fetch(
+      `${String(BASE).replace(/\/$/, "")}/billing/stripe/checkout`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ plan_code: tier.planCode }),
+      }
+    );
+
+    const data = await res.json();
+    if (!res.ok || !data?.url) {
+      throw new Error(data?.error || "Checkout failed");
+    }
+
     window.location.href = data.url;
   };
   
@@ -114,97 +174,115 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onClose }) => {
     window.location.href = data.url;
   };
 
-  const currentPlanCode = sub?.plan_code ?? "free";
 
   return (
+    <>
+      <SEO
+        title="Pricing & Plans"
+        description="Choose a plan to talk privately with Maya through text or live voice."
+        noindex
+      />
 
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-
-<div
-  className="relative text-brand-dark shadow-2xl w-[1308px] h-[785px] overflow-hidden"
-  style={{
-    borderRadius: "20px",
-    background: "linear-gradient(107.56deg, #FFFFFF 0.19%, #C2BBF2 99.81%)",
-  }}
->
-
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute top-4 right-4 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-full p-2 transition"
-          aria-label="Close subscription modal"
+      {/* BACKDROP */}
+      <div className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm flex items-center justify-center p-4">
+        {/* MODAL */}
+        <div
+          className="
+            relative
+            w-full
+            max-w-[1320px]
+            h-[92vh]
+            flex
+            flex-col
+            overflow-hidden
+            rounded-2xl
+            shadow-2xl
+          "
+          style={{
+            background:
+              "linear-gradient(107.56deg, #FFFFFF 0.19%, #C2BBF2 99.81%)",
+          }}
         >
-          X
-        </button>
+          {/* CLOSE BUTTON */}
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="
+              absolute
+              right-4
+              top-4
+              z-50
+              h-10
+              w-10
+              rounded-full
+              bg-white/90
+              text-gray-700
+              shadow-md
+              hover:bg-white
+              flex
+              items-center
+              justify-center
+            "
+          >
+            ✕
+          </button>
 
-        <div className="mx-auto max-w-7xl  pt-2 text-center">
-        <div className="mx-auto max-w-3xl  text-center">
-  <h2
-    className="mx-auto"
-    style={{
-      fontFamily: "Inter",
-      fontWeight: 800,
-      fontSize: "24px",
-      lineHeight: "24px",
-      color: "#4F47E6",
-    }}
-  >
-    Pricing
-  </h2>
+          {/* HEADER */}
+          <div className="shrink-0 px-6 pt-8 text-center">
+            <h2 className="text-sm font-semibold text-[#4F47E6]">
+              Pricing
+            </h2>
 
-  <h1
-    className="mt-4"
-    style={{
-      fontFamily: "Inter",
-      fontWeight: 800,
-      fontSize: "55px",
-      lineHeight: "1.05",
-      color: "#0F1A3AE5",
-    }}
-  >
-    The Right Plan for You
-  </h1>
-</div>
+            <h1 className="mt-3 text-3xl sm:text-4xl lg:text-[52px] font-extrabold text-[#0F1A3AE5]">
+              The Right Plan for You
+            </h1>
 
-         
-         
-         
-         
-         
-          <p className="mt-2 text-sm text-gray-500 ">
-            Current plan: <span className="font-semibold">{currentPlanCode}</span>
-          </p>
+            <p className="mt-2 text-sm text-gray-500">
+              Current plan:{" "}
+              <span className="font-semibold">{currentPlanCode}</span>
+            </p>
+          </div>
 
+          {/* SCROLLABLE CONTENT */}
+          <div className="flex-1 overflow-y-auto px-4 sm:px-8 pt-10 pb-16">
+            <div
+              className="
+                grid
+                grid-cols-1
+                gap-6
+                sm:grid-cols-2
+                lg:grid-cols-4
+                place-items-center
+              "
+            >
+              {TIERS.map((tier) => {
+                const isTier2 = tier.planCode === "tier2";
 
-
-          {/* <p className="mt-4 mx-auto max-w-2xl text-lg leading-8 text-gray-600">Start for free and upgrade anytime.</p> */}
-        </div>
-
-        <div className="flow-root pb-16 sm:pb-24 rounded-b-3xl pt-8">
-        <div className="mx-auto px-8">
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {tiers.map((tier) => (
-                <PricingCard
-                  key={tier.planCode}
-                  tier={tier}
-                  currentPlanCode={currentPlanCode}                // ← new
-                  subMeta={{
-                    status: sub?.status ?? "none",
-                    cancel_at: sub?.cancel_at ?? 0,
-                    current_period_end: sub?.current_period_end ?? 0,
-                    days_left: sub?.days_left ?? null,
-                  }}                                                // ← new
-                  onSubscribe={onSubscribe}
-                  onManage={onManage}                               // ← new
-                  // onClose={onClose}
-                />
-              ))}
+                return (
+                  <div
+                    key={tier.planCode}
+                    ref={isTier2 ? tier2Ref : undefined}
+                  >
+                    <PricingCard
+                      tier={tier}
+                      currentPlanCode={currentPlanCode}
+                      subMeta={{
+                        status: sub?.status ?? "none",
+                        cancel_at: sub?.cancel_at ?? 0,
+                        current_period_end: sub?.current_period_end ?? 0,
+                        days_left: sub?.days_left ?? null,
+                      }}
+                      onSubscribe={onSubscribe}
+                      onManage={onManage}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
       </div>
-    </div>
-    
+    </>
   );
 };
 
