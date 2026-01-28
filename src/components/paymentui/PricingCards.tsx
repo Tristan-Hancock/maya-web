@@ -86,100 +86,144 @@ const PricingCard: React.FC<PricingCardProps> = ({
   //   currentPlanCode !== "free";
 
   return (
-    <div
-      className={`
-        w-full
-        sm:w-[300px]
-        flex flex-col
-        rounded-2xl
-        ring-1
-        ${
-          isPopular
-            ? "bg-gray-900 ring-gray-900"
-            : "bg-white ring-gray-200"
-        }
-        p-6
-      `}
-    >
-      {/* Icon */}
-      <div className="flex justify-center">
-        <img src={tier.icon} className="h-10 w-10" />
+  <div
+    className={`
+      relative
+      w-full
+      sm:w-[300px]
+      flex flex-col
+      rounded-2xl
+      ring-1
+      ${isPopular ? "ring-transparent" : "bg-white ring-gray-200"}
+      p-6
+    `}
+    style={
+      isPopular
+        ? {
+            background:
+              "linear-gradient(148deg, #FF599A 0%, #101631 50%, #4F47E6 100%)",
+            boxShadow:
+              "0 0 0 1px rgba(255,255,255,0.08), 0 25px 60px rgba(255,89,154,0.45)",
+          }
+        : undefined
+    }
+  >
+    {/* MOST POPULAR BADGE */}
+    {isPopular && (
+      <div
+        className="
+          absolute
+          -top-3
+          right-6
+          rounded-full
+          px-4
+          py-1
+          text-xs
+          font-semibold
+          text-white
+        "
+        style={{
+          backgroundColor: "#FF599A",
+          boxShadow: "0 6px 18px rgba(255,89,154,0.5)",
+        }}
+      >
+        Most Popular
       </div>
+    )}
 
-      {/* Title */}
-      <h3
-        className={`mt-4 text-center text-xl font-semibold ${
+    {/* Icon */}
+    <div className="flex justify-center">
+      <img src={tier.icon} className="h-10 w-10" />
+    </div>
+
+    {/* Title */}
+    <h3
+      className={`mt-4 text-center text-xl font-semibold ${
+        isPopular ? "text-white" : "text-gray-900"
+      }`}
+    >
+      {tier.name}
+    </h3>
+
+    {/* Price */}
+    <div className="mt-4 text-center">
+      <span
+        className={`text-4xl font-bold ${
           isPopular ? "text-white" : "text-gray-900"
         }`}
       >
-        {tier.name}
-      </h3>
-
-      {/* Price */}
-      <div className="mt-4 text-center">
-        <span
-          className={`text-4xl font-bold ${
-            isPopular ? "text-white" : "text-gray-900"
-          }`}
-        >
-          {tier.price}
-        </span>
-        <span className="ml-1 text-sm text-gray-400">/month</span>
-        <div className="text-sm text-gray-400">{tier.yearPrice} billed yearly</div>
-      </div>
-
-      {/* Statement */}
-      <p
-        className={`mt-4 text-center text-sm ${
-          isPopular ? "text-gray-300" : "text-gray-600"
-        }`}
-      >
-        {tier.statement}
-      </p>
-
+        {tier.price}
+      </span>
+      <span className="ml-1 text-sm text-gray-300">/month</span>
       <div
-        className={`my-5 h-px ${
-          isPopular ? "bg-white/20" : "bg-gray-200"
-        }`}
-      />
-
-      {/* Features */}
-      <ul
-        className={`flex-1 space-y-3 text-sm ${
-          isPopular ? "text-gray-300" : "text-gray-700"
+        className={`text-sm ${
+          isPopular ? "text-gray-300" : "text-gray-400"
         }`}
       >
-        {tier.features.map((f) => (
-          <li key={f} className="flex gap-3">
-            <CheckIcon
-              className={`h-5 w-5 ${
-                isPopular ? "text-white" : "text-indigo-600"
-              }`}
-            />
-            <span>{f}</span>
-          </li>
-        ))}
-      </ul>
-
-      {/* CTA */}
-      <button
-        onClick={handleSubscription}
-        disabled={isCurrent || isLoading}
-        className={`
-          mt-6 w-full rounded-full py-3 text-sm font-semibold transition
-          ${
-            isCurrent
-              ? "border border-gray-400 text-gray-400"
-              : isPopular
-              ? "bg-indigo-600 text-white hover:bg-indigo-500"
-              : "border border-indigo-400 text-indigo-600 hover:border-indigo-500"
-          }
-        `}
-      >
-        {isLoading ? "Processing…" : ctaLabel}
-      </button>
+        {tier.yearPrice} billed yearly
+      </div>
     </div>
-  );
+
+    {/* Statement */}
+    <p
+      className={`mt-4 text-center text-sm ${
+        isPopular ? "text-gray-200" : "text-gray-600"
+      }`}
+    >
+      {tier.statement}
+    </p>
+
+    {/* Divider */}
+    <div
+      className={`my-5 h-px ${
+        isPopular ? "bg-white/25" : "bg-gray-200"
+      }`}
+    />
+
+    {/* Features */}
+    <ul
+      className={`flex-1 space-y-3 text-sm ${
+        isPopular ? "text-gray-200" : "text-gray-700"
+      }`}
+    >
+      {tier.features.map((f) => (
+        <li key={f} className="flex gap-3">
+          <CheckIcon
+            className={`h-5 w-5 ${
+              isPopular ? "text-white" : "text-indigo-600"
+            }`}
+          />
+          <span>{f}</span>
+        </li>
+      ))}
+    </ul>
+
+    {/* CTA */}
+    <button
+      onClick={handleSubscription}
+      disabled={isCurrent || isLoading}
+      className={`
+        mt-6
+        w-full
+        rounded-full
+        py-3
+        text-sm
+        font-semibold
+        transition
+        ${
+          isCurrent
+            ? "border border-gray-400 text-gray-400"
+            : isPopular
+            ? "bg-white/10 text-white hover:bg-white/20"
+            : "border border-indigo-400 text-indigo-600 hover:border-indigo-500"
+        }
+      `}
+    >
+      {isLoading ? "Processing…" : ctaLabel}
+    </button>
+  </div>
+);
+
 };
 
 export default PricingCard;
