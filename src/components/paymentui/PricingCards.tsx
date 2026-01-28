@@ -86,28 +86,53 @@ const PricingCard: React.FC<PricingCardProps> = ({
   //   currentPlanCode !== "free";
 
   return (
-  <div
-    className={`
-      relative
-      w-full
-      sm:w-[300px]
-      flex flex-col
-      rounded-2xl
-      ring-1
-      ${isPopular ? "ring-transparent" : "bg-white ring-gray-200"}
-      p-6
-    `}
-    style={
-      isPopular
-        ? {
-            background:
-              "linear-gradient(148deg, #FF599A 0%, #101631 50%, #4F47E6 100%)",
-            boxShadow:
-              "0 0 0 1px rgba(255,255,255,0.08), 0 25px 60px rgba(255,89,154,0.45)",
-          }
-        : undefined
-    }
-  >
+ <div
+  className={`
+    relative
+    w-full
+    sm:w-[300px]
+    flex flex-col
+    rounded-2xl
+    ring-1
+${isPopular ? "ring-transparent" : "bg-white ring-gray-200"}
+    p-6
+  `}
+style={{
+  // MOST POPULAR (Tier 2) — strong pink glow
+  ...(isPopular && {
+    background:
+      "linear-gradient(148deg, #FF599A 0%, #101631 52%, #4F47E6 100%)",
+    boxShadow: `
+      0 0 0 1px rgba(255,255,255,0.10),
+      0 30px 80px rgba(255, 89, 154, 0.85),
+      0 0 60px rgba(255, 89, 154, 0.65)
+    `,
+  }),
+
+  // Tier 3 — visible purple glow
+  ...(tier.planCode === "tier3" && !isPopular && {
+    boxShadow: `
+      0 0 0 1px rgba(147,142,222,0.45),
+      0 25px 65px rgba(147,142,222,0.75),
+      0 0 40px rgba(147,142,222,0.55)
+    `,
+  }),
+
+  // Tier 1 — clean dark elevation
+  ...(tier.planCode === "tier1" && {
+    boxShadow:
+      "0 18px 45px rgba(15, 26, 58, 0.28)",
+  }),
+
+  // Free — subtle elevation
+  ...(tier.planCode === "free" && {
+    boxShadow:
+      "0 10px 30px rgba(15, 26, 58, 0.18)",
+  }),
+}}
+
+>
+
     {/* MOST POPULAR BADGE */}
     {isPopular && (
       <div
