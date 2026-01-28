@@ -125,7 +125,7 @@ const PricingCard: React.FC<PricingCardProps> = ({
           {tier.price}
         </span>
         <span className="ml-1 text-sm text-gray-400">/month</span>
-        <div className="text-sm text-gray-400">billed yearly</div>
+        <div className="text-sm text-gray-400">{tier.yearPrice} billed yearly</div>
       </div>
 
       {/* Statement */}

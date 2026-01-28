@@ -15,6 +15,7 @@ export type SubscriptionStatus = "none" | "active" | "past_due" | "cancel_at_per
 export interface Tier {
   name: string;                // display name
   planCode: PlanCode;          // "free" | "tier1" | "tier2" | "tier3"
+  yearPrice: string;
   price: string;               // e.g. "$0", "$12.99"
   statement: string;           // sentence under price
   features: string[];          // bullet points

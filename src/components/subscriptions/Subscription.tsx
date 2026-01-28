@@ -23,6 +23,7 @@ const TIERS: Tier[] = [
     name: "Starter",
     planCode: "free",
     price: "$0",
+    yearPrice: "$0",
     statement: "For those getting started with Maya",
     features: [
       "5 Monthly Prompts",
@@ -38,6 +39,7 @@ const TIERS: Tier[] = [
     name: "Tier 1",
     planCode: "tier1",
     price: "$12.99",
+    yearPrice: "$155",
     statement: "For better experience with Maya",
     features: [
       "20 Monthly Prompts",
@@ -53,6 +55,7 @@ const TIERS: Tier[] = [
     name: "Tier 2",
     planCode: "tier2",
     price: "$18.99",
+    yearPrice: "$227",
     statement: "For the best experience with Maya",
     features: [
       "45 Monthly Prompts",
@@ -69,6 +72,7 @@ const TIERS: Tier[] = [
     name: "Tier 3",
     planCode: "tier3",
     price: "$39.99",
+    yearPrice: "$480",
     statement: "For power users and heavy usage",
     features: [
       "100 Monthly Prompts",
