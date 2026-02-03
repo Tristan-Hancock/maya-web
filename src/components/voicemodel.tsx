@@ -46,8 +46,12 @@ export default function VoiceGateModal({
           title: "Call already active",
           body: "You already have a voice session in progress or within grace. End it before starting a new one.",
         };
-      default:
-        return { title: "Voice temporarily unavailable", body: gate.message };
+        default:
+          return {
+            title: "Voice temporarily unavailable",
+            body: gate.message || "Please try again in a moment.",
+          };
+        
     }
   })();
 

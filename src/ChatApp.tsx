@@ -298,21 +298,54 @@ const App: React.FC = () => {
   );
 
   function buildVoiceGate(err: any) {
-    if (err?.status === 402 && (err?.kind === "voice_cap" || err?.reason)) {
-      const reason = String(err.reason || "");
-      if (reason === "cooldown_active") {
-        return { kind: "cooldown_active" as const, waitMs: Number(err.wait_ms || 0) };
-      }
-      if (reason === "minutes_exhausted") {
-        return { kind: "minutes_exhausted" as const, used: err.used, cap: err.cap };
-      }
-      if (reason === "voice_disabled") return { kind: "voice_disabled" as const };
-      if (reason === "concurrent_call") return { kind: "concurrent_call" as const };
-      return { kind: "generic" as const, message: "Upgrade to use voice or try again later." };
+    const raw =
+      String(err?.reason || err?.kind || err?.message || "")
+        .toLowerCase()
+        .trim();
+  
+    // 🔒 Cooldown
+    if (raw.includes("cooldown")) {
+      return {
+        kind: "cooldown_active" as const,
+        waitMs: Number(err.wait_ms || err.waitMs || 0),
+      };
     }
-    return { kind: "generic" as const, message: err?.message || "Voice is unavailable right now." };
+  
+    // 🔒 Minutes exhausted
+    if (raw.includes("minute")) {
+      return {
+        kind: "minutes_exhausted" as const,
+        used: err.used,
+        cap: err.cap,
+      };
+    }
+  
+    // 🔒 Voice not in plan
+    if (raw.includes("disabled")) {
+      return { kind: "voice_disabled" as const };
+    }
+  
+    // 🔒 Concurrent call
+    if (raw.includes("concurrent")) {
+      return { kind: "concurrent_call" as const };
+    }
+  
+    // 🔒 Explicit backend 402 with no clear reason
+    if (err?.status === 402) {
+      return {
+        kind: "generic" as const,
+        message: "Upgrade to use voice or try again later.",
+      };
+    }
+  
+    // 🔒 Final safety net
+    return {
+      kind: "generic" as const,
+      message: "Voice is unavailable right now.",
+    };
   }
-
+  
+  
   const goUpgrade = () => {
     setVoiceGate(null);
     setShowSub(true);
