@@ -236,10 +236,11 @@ const DELETE_PATH = "/delete/prod/threads";
     
         {/* Fixed top bar */}
         <div
-          className={`fixed top-0 right-0 z-30 h-14 bg-transparent  transition-[left] duration-200 ${
-            leftOpen ? "lg:left-72 left-0" : "left-0"
-          }`}
-        >
+  className={`fixed top-0 right-0 z-40 h-14 bg-white border-b border-gray-200 transition-[left] duration-200 ${
+    leftOpen ? "lg:left-72 left-0" : "left-0"
+  }`}
+>
+
           <div className="h-full max-w-6xl mx-auto flex items-center justify-between">
             <button
               type="button"
@@ -249,65 +250,86 @@ const DELETE_PATH = "/delete/prod/threads";
             >
               <MenuIcon className="w-6 h-6 text-gray-700" />
             </button>
-    
-            <div className="relative" ref={menuRef}>
-              <button
-                type="button"
-                aria-label="User menu"
-                onClick={() => setMenuOpen((v) => !v)}
-                className="h-9 w-9 rounded-full bg-[#1B2245] text-white flex items-center justify-center shadow hover:opacity-90"
-              >
-                <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current">
-                  <path d="M12 12c2.761 0 5-2.462 5-5.5S14.761 1 12 1 7 3.462 7 6.5 9.239 12 12 12zm0 2c-4.418 0-8 3.134-8 7v1h16v-1c0-3.866-3.582-7-8-7z" />
-                </svg>
-              </button>
-    
-              {menuOpen && (
-                <div className="absolute right-0 mt-2 w-64 rounded-2xl border border-gray-200 bg-white shadow-xl p-6 flex flex-col items-center text-center">
-                  <div className="mb-3">
-                    <div className="text-sm font-medium text-gray-700">Hi {username}</div>
-                  </div>
-    
-                  <div className="flex flex-col items-center gap-3 mb-5">
-                    <div className="h-12 w-12 rounded-full bg-[#1B2245] text-white flex items-center justify-center text-lg font-semibold">
-                      {initial}
-                    </div>
-                  </div>
-    
-                  <div className="flex flex-col gap-2 w-full">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        setShowSubscription(true);
-                      }}
-                      className="w-full text-sm px-3 py-2 rounded-xl hover:bg-gray-100 transition"
-                    >
-                      Subscription
-                    </button>
-    
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMenuOpen(false);
-                        setShowSettings(true);
-                      }}
-                      className="w-full text-sm px-3 py-2 rounded-xl hover:bg-gray-100 transition"
-                    >
-                      Settings
-                    </button>
-    
-                    <button
-                      type="button"
-                      onClick={handleSignOut}
-                      className="w-full text-sm px-3 py-2 rounded-xl text-red-600 hover:bg-red-50 transition"
-                    >
-                      Sign out
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            <div className="flex items-center gap-3 relative" ref={menuRef}>
+  {/* Upgrade Button */}
+  <button
+    type="button"
+    onClick={() => setShowSubscription(true)}
+    className="
+      inline-flex items-center
+      px-4 py-1.5 rounded-full
+      text-sm font-semibold text-white
+      bg-gradient-to-r from-[#6B66FF] to-[#8B85FF]
+      shadow-md
+      hover:shadow-[0_0_12px_rgba(107,102,255,0.35)]
+      transition-all duration-300
+      animate-[pulse_2.5s_ease-in-out_infinite]
+    "
+    aria-label="Upgrade plan"
+  >
+    ✨ Upgrade
+  </button>
+
+  {/* User Menu Button (ONLY ONCE) */}
+  <button
+    type="button"
+    aria-label="User menu"
+    onClick={() => setMenuOpen((v) => !v)}
+    className="h-9 w-9 rounded-full bg-[#1B2245] text-white flex items-center justify-center shadow hover:opacity-90"
+  >
+    <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current">
+      <path d="M12 12c2.761 0 5-2.462 5-5.5S14.761 1 12 1 7 3.462 7 6.5 9.239 12 12 12zm0 2c-4.418 0-8 3.134-8 7v1h16v-1c0-3.866-3.582-7-8-7z" />
+    </svg>
+  </button>
+
+  {/* Menu Dropdown */}
+  {menuOpen && (
+    <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl border border-gray-200 bg-white shadow-xl p-6 flex flex-col items-center text-center">
+      <div className="mb-3">
+        <div className="text-sm font-medium text-gray-700">Hi {username}</div>
+      </div>
+
+      <div className="flex flex-col items-center gap-3 mb-5">
+        <div className="h-12 w-12 rounded-full bg-[#1B2245] text-white flex items-center justify-center text-lg font-semibold">
+          {initial}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2 w-full">
+        <button
+          type="button"
+          onClick={() => {
+            setMenuOpen(false);
+            setShowSubscription(true);
+          }}
+          className="w-full text-sm px-3 py-2 rounded-xl hover:bg-gray-100 transition"
+        >
+          Subscription
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setMenuOpen(false);
+            setShowSettings(true);
+          }}
+          className="w-full text-sm px-3 py-2 rounded-xl hover:bg-gray-100 transition"
+        >
+          Settings
+        </button>
+
+        <button
+          type="button"
+          onClick={handleSignOut}
+          className="w-full text-sm px-3 py-2 rounded-xl text-red-600 hover:bg-red-50 transition"
+        >
+          Sign out
+        </button>
+      </div>
+    </div>
+  )}
+</div>
+
           </div>
         </div>
     
