@@ -253,22 +253,39 @@ const DELETE_PATH = "/delete/prod/threads";
             <div className="flex items-center gap-3 relative" ref={menuRef}>
   {/* Upgrade Button */}
   <button
-    type="button"
-    onClick={() => setShowSubscription(true)}
-    className="
-      inline-flex items-center
-      px-4 py-1.5 rounded-full
-      text-sm font-semibold text-white
-      bg-gradient-to-r from-[#6B66FF] to-[#8B85FF]
-      shadow-md
-      hover:shadow-[0_0_12px_rgba(107,102,255,0.35)]
-      transition-all duration-300
-      animate-[pulse_2.5s_ease-in-out_infinite]
-    "
-    aria-label="Upgrade plan"
-  >
-    ✨ Upgrade
-  </button>
+  type="button"
+  onClick={() => setShowSubscription(true)}
+  aria-label="Upgrade plan"
+  className="
+    relative inline-flex items-center
+    px-4 py-1.5 rounded-full
+    text-sm font-semibold text-white
+    bg-gradient-to-r from-[#6B66FF] to-[#8B85FF]
+
+    /* pink glow border */
+    before:content-['']
+    before:absolute
+    before:-inset-[2px]
+    before:rounded-full
+    before:bg-gradient-to-r
+    before:from-pink-400
+    before:via-fuchsia-400
+    before:to-purple-400
+    before:opacity-70
+    before:blur-md
+    before:-z-10
+
+    /* hover intensifies glow */
+    hover:before:opacity-100
+    hover:before:blur-lg
+
+    shadow-md
+    transition-all duration-300
+  "
+>
+   Upgrade ✨
+</button>
+
 
   {/* User Menu Button (ONLY ONCE) */}
   <button
