@@ -9,7 +9,10 @@ export interface SidebarProps {
   onSelectThread: (threadHandle: string) => void;
   onClose: () => void;
   onDeleteThread?: (threadHandle: string) => void; // ⇐ used to trigger modal
+    onUpgrade?: () => void;
+
 }
+
 
 const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
@@ -18,8 +21,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   onSelectThread,
   onClose,
   onDeleteThread,
+  onUpgrade
 }) => {
-  const { threads, activeThread, setActiveThread, refreshThreads } = useApp();
+  const { threads, activeThread, setActiveThread, refreshThreads ,  activeSection,setActiveSection, } = useApp();
 
   const wasOpenRef = useRef<boolean>(false);
 
@@ -32,10 +36,12 @@ const Sidebar: React.FC<SidebarProps> = ({
     if (!isOpen) wasOpenRef.current = false;
   }, [isOpen, refreshThreads]);
 
-  const handleSelect = (h: string) => {
-    setActiveThread(h);
-    onSelectThread(h);
-  };
+const handleSelect = (h: string) => {
+  setActiveSection("chat");
+  setActiveThread(h);
+  onSelectThread(h);
+};
+
 
   // menu state for per-thread kebab menu
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -68,6 +74,32 @@ const Sidebar: React.FC<SidebarProps> = ({
     return;
   }, [openMenu]);
 
+
+  //calling diff sections from this 
+function SidebarSectionButton({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={[
+        "w-full px-4 py-2 rounded-xl text-left text-sm transition",
+        active
+          ? "bg-indigo-50 text-indigo-700 font-medium"
+          : "text-slate-700 hover:bg-slate-100",
+      ].join(" ")}
+    >
+      {label}
+    </button>
+  );
+}
+
   return (
     <>
       {/* Surface switched to light theme to match app */}
@@ -80,7 +112,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       >
         {/* Header */}
         <div className="flex justify-between items-center p-4 border-b border-gray-200 shrink-0">
-          <h2 className="text-base font-semibold text-slate-900">History</h2>
+          <h2 className="text-base font-semibold text-slate-900">Ovelia Health</h2>
           <button
             onClick={onClose}
             className="p-1 rounded-md hover:bg-slate-100 md:hidden"
@@ -90,8 +122,30 @@ const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
 
+{/* App Sections */}
+<div className="px-3 py-4 space-y-1 border-b border-gray-200">
+  <SidebarSectionButton
+    label="Chat with Maya"
+    active={activeSection === "chat"}
+    onClick={() => setActiveSection("chat")}
+  />
+  <SidebarSectionButton
+    label="Health Insights"
+    active={activeSection === "insights"}
+    onClick={() => setActiveSection("insights")}
+  />
+  <SidebarSectionButton
+    label="Health Journal"
+    active={activeSection === "journal"}
+    onClick={() => setActiveSection("journal")}
+  />
+</div>
+
+
+
+
         {/* New Chat */}
-        <div className="p-4 border-b border-gray-200 shrink-0">
+        {/* <div className="p-4 border-b border-gray-200 shrink-0">
           <button
             onClick={onNewChat}
             className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-[#1B2245] text-white hover:opacity-90 transition"
@@ -99,7 +153,26 @@ const Sidebar: React.FC<SidebarProps> = ({
             <PlusIcon className="w-5 h-5" />
             <span className="text-sm">New Chat</span>
           </button>
-        </div>
+        </div> */}
+
+{/* Chat History Header */}
+<div className="flex items-center justify-between px-4 pt-4 pb-2">
+  <span className="text-xs font-semibold tracking-wide text-slate-400">
+    CHAT HISTORY
+  </span>
+
+  <button
+    onClick={() => {
+      setActiveSection("chat");
+      onNewChat();
+    }}
+    aria-label="New chat"
+    className="h-8 w-8 rounded-full flex items-center justify-center
+               bg-slate-100 hover:bg-slate-200 transition"
+  >
+    <PlusIcon className="w-4 h-4 text-slate-700" />
+  </button>
+</div>
 
         {/* Thread list */}
         <nav
@@ -181,7 +254,20 @@ const Sidebar: React.FC<SidebarProps> = ({
             );
           })}
         </nav>
+        {/* Bottom Upgrade CTA */}
+<div className="shrink-0 border-t border-gray-200 px-4 py-4">
+<button
+  onClick={onUpgrade}
+  className="w-full flex items-center gap-2 text-sm font-medium
+             text-indigo-600 hover:text-indigo-700 transition"
+>
+  <span className="h-2 w-2 rounded-full bg-indigo-500" />
+  Get Premium
+</button>
+
+</div>
       </div>
+
 
       {/* Mobile backdrop */}
       {isOpen && (
