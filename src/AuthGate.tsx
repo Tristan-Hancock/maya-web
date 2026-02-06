@@ -37,7 +37,7 @@ const DELETE_PATH = "/delete/prod/threads";
   const [leftOpen, setLeftOpen] = useState(false);
   const [showSubscription, setShowSubscription] = useState(false); // ✅ modal control
   const menuRef = useRef<HTMLDivElement>(null);
-  const { boot, ready, activeThread, setActiveThread, threads, refreshThreads,   activeSection, setActiveSection, } = useApp();
+  const { boot, ready, activeThread, setActiveThread, threads, refreshThreads,   activeSection } = useApp();
   const [pendingDeleteThread, setPendingDeleteThread] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   

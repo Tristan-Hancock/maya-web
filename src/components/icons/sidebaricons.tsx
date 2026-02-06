@@ -62,3 +62,40 @@ export const CheckIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     </svg>
 );
 
+export const ChartBarIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+  </svg>
+);
+
+export const JournalIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    strokeWidth={1.5}
+    stroke="currentColor"
+    {...props}
+  >
+    {/* Notebook spine */}
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M6 4.75h10.5a2.25 2.25 0 012.25 2.25v10a2.25 2.25 0 01-2.25 2.25H6A1.75 1.75 0 014.25 17.5V6.5A1.75 1.75 0 016 4.75z"
+    />
+
+    {/* Binding dots */}
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M7.5 8.25h.01M7.5 12h.01M7.5 15.75h.01"
+    />
+
+    {/* Lines */}
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M10 9h6M10 12h6M10 15h4"
+    />
+  </svg>
+);
