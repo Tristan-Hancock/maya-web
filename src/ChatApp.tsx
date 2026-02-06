@@ -107,47 +107,72 @@ const App: React.FC = () => {
     setVoiceGate(buildVoiceGate(err));
   };
   // load history whenever activeThread changes
-  useEffect(() => {
-    (async () => {
-      if (!activeThread) {
-        setMessages([]);
-        return;
-      }
-      try {
-        const hist = await fetchThreadHistory(activeThread, 50);
-        setMessages(hist.map((m) => ({ role: m.role, content: m.content })));
-      } catch (e: any) {
-        console.warn("[history] load failed:", e?.message);
-        setMessages([]); // fail-safe
-      }
-    })();
-  }, [activeThread]);
+  // useEffect(() => {
+  //   (async () => {
+  //     if (!activeThread) {
+  //       setMessages([]);
+  //       return;
+  //     }
+  //     try {
+  //       const hist = await fetchThreadHistory(activeThread, 50);
+  //       setMessages(hist.map((m) => ({ role: m.role, content: m.content })));
+  //     } catch (e: any) {
+  //       console.warn("[history] load failed:", e?.message);
+  //       setMessages([]); // fail-safe
+  //     }
+  //   })();
+  // }, [activeThread]);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    chatContainerRef.current?.scrollTo({ top: chatContainerRef.current.scrollHeight });
-  }, [messages]);
+  // useEffect(() => {
+  //   chatContainerRef.current?.scrollTo({ top: chatContainerRef.current.scrollHeight });
+  // }, [messages]);
+
+const stickToBottomRef = useRef(true);
+useEffect(() => {
+  const el = chatContainerRef.current;
+  if (!el) return;
+
+  const onScroll = () => {
+    const nearBottom =
+      el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    stickToBottomRef.current = nearBottom;
+  };
+
+  el.addEventListener("scroll", onScroll);
+  return () => el.removeEventListener("scroll", onScroll);
+}, []);
+
+useEffect(() => {
+  const el = chatContainerRef.current;
+  if (!el) return;
+
+  if (stickToBottomRef.current) {
+    el.scrollTop = el.scrollHeight;
+  }
+}, [messages]);
 
   // loading thread sign overlay (kept as-is)
-  useEffect(() => {
-    (async () => {
-      if (!activeThread) {
-        setMessages([]);
-        setThreadLoading(false);
-        return;
-      }
-      setThreadLoading(true);
-      try {
-        const hist = await fetchThreadHistory(activeThread, 50);
-        setMessages(hist.map(m => ({ role: m.role, content: m.content })));
-      } catch (e: any) {
-        console.warn("[history] load failed:", e?.message);
-        setMessages([]);
-      } finally {
-        setThreadLoading(false);
-      }
-    })();
-  }, [activeThread]);
+useEffect(() => {
+  (async () => {
+    if (!activeThread) {
+      setMessages([]);
+      setThreadLoading(false);
+      return;
+    }
+    setThreadLoading(true);
+    try {
+      const hist = await fetchThreadHistory(activeThread, 50);
+      setMessages(hist.map(m => ({ role: m.role, content: m.content })));
+    } catch (e: any) {
+      console.warn("[history] load failed:", e?.message);
+      setMessages([]);
+    } finally {
+      setThreadLoading(false);
+    }
+  })();
+}, [activeThread]);
+
 
   const handleSendMessage = useCallback(
     async (message: string) => {
@@ -378,19 +403,25 @@ const App: React.FC = () => {
           </div>
         )}
 
-        <div
-          ref={chatContainerRef}
-          className={`h-full overflow-y-auto p-4 md:p-6 space-y-6 transition-opacity ${
-            threadLoading ? "opacity-40 pointer-events-none" : ""
-          }`}
-        >
+   <div
+  ref={chatContainerRef}
+  className={`h-full overflow-y-auto p-4 md:p-6 flex flex-col justify-end transition-opacity ${
+    threadLoading ? "opacity-40 pointer-events-none" : ""
+  }`}
+>
+
           {messages.length === 0 ? (
             <WelcomeScreen />
           ) : (
-            <div className="max-w-3xl mx-auto w-full">
-              {messages.map((msg, index) => (
-                <ChatMessageDisplay key={index} message={msg} />
-              ))}
+            <div className="max-w-3xl mx-auto w-full space-y-6">
+
+             {messages.map((msg, index) => (
+  <ChatMessageDisplay
+    key={`${msg.role}-${index}-${msg.content.slice(0, 16)}`}
+    message={msg}
+  />
+))}
+
               {isLoading && messages[messages.length - 1]?.role === "user" && (
                 <ChatMessageDisplay
                   message={{ role: "assistant", content: "typing... " }}
