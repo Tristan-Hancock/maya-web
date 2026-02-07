@@ -169,11 +169,11 @@ useEffect(() => {
     const nearBottom =
       el.scrollHeight - el.scrollTop - el.clientHeight < 80;
     stickToBottomRef.current = nearBottom;
-    console.log({
-  scrollTop: el.scrollTop,
-  scrollHeight: el.scrollHeight,
-  clientHeight: el.clientHeight,
-});
+//     console.log({
+//   scrollTop: el.scrollTop,
+//   scrollHeight: el.scrollHeight,
+//   clientHeight: el.clientHeight,
+// });
 
   };
 
