@@ -29,6 +29,39 @@ const App: React.FC = () => {
     return { client_secret, session_deadline_ms, session_started_ms };
   };
 
+const stickToBottomRef = useRef(true);
+const [showJumpToLatest, setShowJumpToLatest] = useState(false);
+useEffect(() => {
+  const el = chatContainerRef.current;
+  if (!el) return;
+
+  const onScroll = () => {
+    const distanceFromBottom =
+      el.scrollHeight - el.scrollTop - el.clientHeight;
+
+    const nearBottom = distanceFromBottom < 80;
+
+    stickToBottomRef.current = nearBottom;
+    setShowJumpToLatest(!nearBottom);
+  };
+
+  el.addEventListener("scroll", onScroll);
+  return () => el.removeEventListener("scroll", onScroll);
+}, []);
+
+
+
+const scrollToLatest = () => {
+  const el = chatContainerRef.current;
+  if (!el) return;
+
+  stickToBottomRef.current = true;
+  el.scrollTo({
+    top: el.scrollHeight,
+    behavior: "smooth",
+  });
+};
+
   // guard to ensure we call /voice/end only once per call
   const endedRef = useRef(false);
 
@@ -128,7 +161,6 @@ const App: React.FC = () => {
   //   chatContainerRef.current?.scrollTo({ top: chatContainerRef.current.scrollHeight });
   // }, [messages]);
 
-const stickToBottomRef = useRef(true);
 useEffect(() => {
   const el = chatContainerRef.current;
   if (!el) return;
@@ -137,6 +169,12 @@ useEffect(() => {
     const nearBottom =
       el.scrollHeight - el.scrollTop - el.clientHeight < 80;
     stickToBottomRef.current = nearBottom;
+    console.log({
+  scrollTop: el.scrollTop,
+  scrollHeight: el.scrollHeight,
+  clientHeight: el.clientHeight,
+});
+
   };
 
   el.addEventListener("scroll", onScroll);
@@ -148,9 +186,17 @@ useEffect(() => {
   if (!el) return;
 
   if (stickToBottomRef.current) {
-    el.scrollTop = el.scrollHeight;
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
+
+    if (el.scrollHeight <= el.clientHeight + 4) {
+  el.scrollTop = 0;
+}
+
   }
 }, [messages]);
+
 
   // loading thread sign overlay (kept as-is)
 useEffect(() => {
@@ -160,6 +206,10 @@ useEffect(() => {
       setThreadLoading(false);
       return;
     }
+
+    // 🔑 RESET SCROLL INTENT FOR NEW THREAD
+    stickToBottomRef.current = true;
+
     setThreadLoading(true);
     try {
       const hist = await fetchThreadHistory(activeThread, 50);
@@ -172,6 +222,7 @@ useEffect(() => {
     }
   })();
 }, [activeThread]);
+
 
 
   const handleSendMessage = useCallback(
@@ -387,10 +438,10 @@ useEffect(() => {
     />
   <meta name="robots" content="noindex, nofollow" />
 
-    <div className="flex flex-col min-h-screen text-[#191D38] bg-[repeating-linear-gradient(to_bottom,#EAEBFF_0%,#FFFFFF_40%,#EAEBFF_80%)]">
+    <div className="flex flex-col h-screen text-[#191D38] bg-[repeating-linear-gradient(to_bottom,#EAEBFF_0%,#FFFFFF_40%,#EAEBFF_80%)]">
         <div id="voice-audio-root" className="fixed w-0 h-0 overflow-hidden opacity-0 pointer-events-none" aria-hidden="true" />
 
-      <div className="relative flex-1">
+      <div className="relative flex-1 overflow-hidden">
         {threadLoading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center">
             <div className="flex items-center gap-3 rounded-2xl bg-white/90 border border-gray-200 shadow px-4 py-3">
@@ -403,12 +454,13 @@ useEffect(() => {
           </div>
         )}
 
-   <div
+ <div
   ref={chatContainerRef}
-  className={`h-full overflow-y-auto p-4 md:p-6 flex flex-col justify-end transition-opacity ${
+  className={`h-full overflow-y-auto p-4 md:p-6 flex flex-col transition-opacity ${
     threadLoading ? "opacity-40 pointer-events-none" : ""
   }`}
 >
+
 
           {messages.length === 0 ? (
             <WelcomeScreen />
@@ -431,10 +483,28 @@ useEffect(() => {
             </div>
           )}
         </div>
+        {showJumpToLatest && (
+    <button
+      onClick={scrollToLatest}
+      className="
+        absolute bottom-6 right-4 z-20
+        flex items-center gap-2
+        rounded-full bg-white border border-gray-200
+        px-4 py-2 text-sm font-medium text-gray-700
+        shadow-lg hover:bg-gray-50
+        transition-all
+      "
+      aria-label="Jump to latest message"
+    >
+      <span className="text-lg">⬇</span>
+      <span className="hidden sm:inline">Jump to latest</span>
+    </button>
+  )}
       </div>
 
       <div className="px-4 pb-4 md:pb-8 w-full sticky bottom-0 bg-gradient-to-t from-white via-white/90 to-transparent">
         <div className="max-w-3xl mx-auto">
+          
        <ChatInput
   input={input}
   setInput={setInput}
