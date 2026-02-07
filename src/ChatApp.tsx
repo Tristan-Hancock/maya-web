@@ -62,6 +62,20 @@ const scrollToLatest = () => {
   });
 };
 
+
+
+
+const forceScrollToBottom = () => {
+  const el = chatContainerRef.current;
+  if (!el) return;
+
+  stickToBottomRef.current = true;
+  requestAnimationFrame(() => {
+    el.scrollTop = el.scrollHeight;
+  });
+};
+
+
   // guard to ensure we call /voice/end only once per call
   const endedRef = useRef(false);
 
@@ -213,7 +227,17 @@ useEffect(() => {
     setThreadLoading(true);
     try {
       const hist = await fetchThreadHistory(activeThread, 50);
-      setMessages(hist.map(m => ({ role: m.role, content: m.content })));
+setMessages(
+  hist.map((m: any) => ({
+    role: m.role,
+    content: m.content,
+    attachmentName:
+      m.attachmentName ??
+      m.attachment_name ??
+      m.filename ??
+      null,
+  }))
+);
     } catch (e: any) {
       console.warn("[history] load failed:", e?.message);
       setMessages([]);
@@ -233,6 +257,7 @@ useEffect(() => {
 
       // optimistic user message + placeholder
       setMessages((prev) => [...prev, { role: "user", content: message }]);
+      forceScrollToBottom();
       const placeholderIndex = messages.length + 1;
       setMessages((prev) => [...prev, { role: "assistant", content: "typing... " }]);
 
@@ -323,6 +348,7 @@ useEffect(() => {
         ...prev,
         { role: "user", content: label, attachmentName: file.name },
       ]);
+      forceScrollToBottom();
       const placeholderIndex = messages.length + 1;
       setMessages((prev) => [...prev, { role: "assistant", content: "typing... " }]);
 
