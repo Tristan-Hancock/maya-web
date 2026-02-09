@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { JournalIcon , PlusIcon, MessageIcon, CloseIcon ,UserIcon , ChartBarIcon  } from "../icons/sidebaricons";
 import { useApp } from "../../appContext";
+import oveliaLogo from "../../assets/ovelia.png";
 
 
 export interface SidebarProps {
@@ -125,11 +126,12 @@ function SidebarSectionButton({
       {/* Header */}
    <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 shrink-0">
   <div className="flex items-center gap-3">
-    <img
-      src="/src/assets/ovelia.png"
-      alt="Ovelia Health"
-      className="h-7 w-7 object-contain"
-    />
+  <img
+  src={oveliaLogo}
+  alt="Ovelia Health"
+  className="h-7 w-7 object-contain"
+/>
+
 
     <div className="leading-tight">
       <div className="text-[16px] font-semibold text-slate-900 tracking-tight">
