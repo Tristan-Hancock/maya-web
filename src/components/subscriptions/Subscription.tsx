@@ -109,7 +109,7 @@ function useIsMobile(breakpoint = 768) {
 
 const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onClose }) => {
   const { sub } = useApp();
-  const BASE = (import.meta as any).env?.VITE_API_BILLING_STRIPE_STAGE as string;
+  const BASE = (import.meta as any).env?.VITE_API_BILLING_STRIPE_PROD as string;
 
   const isMobile = useIsMobile();
   const currentPlanCode = sub?.plan_code ?? "free";
