@@ -216,18 +216,27 @@ function SidebarSectionButton({
 
           return (
             <div key={id} className="relative">
-              <button
-                onClick={() => handleSelect(id)}
-                title={label}
-                className={[
-                  "w-full px-3 py-2 rounded-xl text-left transition",
-                  "flex items-center justify-between",
-                  "ring-1",
-                  isActive
-                    ? "bg-indigo-50 text-indigo-700 ring-indigo-200 shadow-sm"
-                    : "bg-white text-slate-700 ring-transparent hover:ring-slate-200 hover:bg-slate-50",
-                ].join(" ")}
-              >
+            <div
+  role="button"
+  tabIndex={0}
+  title={label}
+  onClick={() => handleSelect(id)}
+  onKeyDown={(e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleSelect(id);
+    }
+  }}
+  className={[
+    "w-full px-3 py-2 rounded-xl text-left transition",
+    "flex items-center justify-between",
+    "ring-1",
+    isActive
+      ? "bg-indigo-50 text-indigo-700 ring-indigo-200 shadow-sm"
+      : "bg-white text-slate-700 ring-transparent hover:ring-slate-200 hover:bg-slate-50",
+  ].join(" ")}
+>
+
                 <div className="flex items-center gap-2 truncate">
                   <MessageIcon
                     className={`w-3.5 h-3.5 flex-shrink-0 ${
@@ -258,7 +267,7 @@ function SidebarSectionButton({
                     <circle cx="19" cy="12" r="1.6" fill="currentColor" />
                   </svg>
                 </button>
-              </button>
+              </div>
 
               {openMenu === id && (
                 <div
