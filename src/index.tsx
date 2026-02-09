@@ -9,6 +9,8 @@ import AuthGate from "./AuthGate";
 import { BrowserRouter } from "react-router-dom";
 import { AppProvider } from "./appContext";
 import { HelmetProvider } from "react-helmet-async";
+import "./tailwind.css";
+import "./index.css";
 
 Amplify.configure(awsconfig);
 
