@@ -29,6 +29,53 @@ const App: React.FC = () => {
     return { client_secret, session_deadline_ms, session_started_ms };
   };
 
+const stickToBottomRef = useRef(true);
+const [showJumpToLatest, setShowJumpToLatest] = useState(false);
+useEffect(() => {
+  const el = chatContainerRef.current;
+  if (!el) return;
+
+  const onScroll = () => {
+    const distanceFromBottom =
+      el.scrollHeight - el.scrollTop - el.clientHeight;
+
+    const nearBottom = distanceFromBottom < 80;
+
+    stickToBottomRef.current = nearBottom;
+    setShowJumpToLatest(!nearBottom);
+  };
+
+  el.addEventListener("scroll", onScroll);
+  return () => el.removeEventListener("scroll", onScroll);
+}, []);
+
+
+
+const scrollToLatest = () => {
+  const el = chatContainerRef.current;
+  if (!el) return;
+
+  stickToBottomRef.current = true;
+  el.scrollTo({
+    top: el.scrollHeight,
+    behavior: "smooth",
+  });
+};
+
+
+
+
+const forceScrollToBottom = () => {
+  const el = chatContainerRef.current;
+  if (!el) return;
+
+  stickToBottomRef.current = true;
+  requestAnimationFrame(() => {
+    el.scrollTop = el.scrollHeight;
+  });
+};
+
+
   // guard to ensure we call /voice/end only once per call
   const endedRef = useRef(false);
 
@@ -107,47 +154,100 @@ const App: React.FC = () => {
     setVoiceGate(buildVoiceGate(err));
   };
   // load history whenever activeThread changes
-  useEffect(() => {
-    (async () => {
-      if (!activeThread) {
-        setMessages([]);
-        return;
-      }
-      try {
-        const hist = await fetchThreadHistory(activeThread, 50);
-        setMessages(hist.map((m) => ({ role: m.role, content: m.content })));
-      } catch (e: any) {
-        console.warn("[history] load failed:", e?.message);
-        setMessages([]); // fail-safe
-      }
-    })();
-  }, [activeThread]);
+  // useEffect(() => {
+  //   (async () => {
+  //     if (!activeThread) {
+  //       setMessages([]);
+  //       return;
+  //     }
+  //     try {
+  //       const hist = await fetchThreadHistory(activeThread, 50);
+  //       setMessages(hist.map((m) => ({ role: m.role, content: m.content })));
+  //     } catch (e: any) {
+  //       console.warn("[history] load failed:", e?.message);
+  //       setMessages([]); // fail-safe
+  //     }
+  //   })();
+  // }, [activeThread]);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    chatContainerRef.current?.scrollTo({ top: chatContainerRef.current.scrollHeight });
-  }, [messages]);
+  // useEffect(() => {
+  //   chatContainerRef.current?.scrollTo({ top: chatContainerRef.current.scrollHeight });
+  // }, [messages]);
+
+useEffect(() => {
+  const el = chatContainerRef.current;
+  if (!el) return;
+
+  const onScroll = () => {
+    const nearBottom =
+      el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    stickToBottomRef.current = nearBottom;
+//     console.log({
+//   scrollTop: el.scrollTop,
+//   scrollHeight: el.scrollHeight,
+//   clientHeight: el.clientHeight,
+// });
+
+  };
+
+  el.addEventListener("scroll", onScroll);
+  return () => el.removeEventListener("scroll", onScroll);
+}, []);
+
+useEffect(() => {
+  const el = chatContainerRef.current;
+  if (!el) return;
+
+  if (stickToBottomRef.current) {
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
+
+    if (el.scrollHeight <= el.clientHeight + 4) {
+  el.scrollTop = 0;
+}
+
+  }
+}, [messages]);
+
 
   // loading thread sign overlay (kept as-is)
-  useEffect(() => {
-    (async () => {
-      if (!activeThread) {
-        setMessages([]);
-        setThreadLoading(false);
-        return;
-      }
-      setThreadLoading(true);
-      try {
-        const hist = await fetchThreadHistory(activeThread, 50);
-        setMessages(hist.map(m => ({ role: m.role, content: m.content })));
-      } catch (e: any) {
-        console.warn("[history] load failed:", e?.message);
-        setMessages([]);
-      } finally {
-        setThreadLoading(false);
-      }
-    })();
-  }, [activeThread]);
+useEffect(() => {
+  (async () => {
+    if (!activeThread) {
+      setMessages([]);
+      setThreadLoading(false);
+      return;
+    }
+
+    // 🔑 RESET SCROLL INTENT FOR NEW THREAD
+    stickToBottomRef.current = true;
+
+    setThreadLoading(true);
+    try {
+      const hist = await fetchThreadHistory(activeThread, 50);
+setMessages(
+  hist.map((m: any) => ({
+    role: m.role,
+    content: m.content,
+    attachmentName:
+      m.attachmentName ??
+      m.attachment_name ??
+      m.filename ??
+      null,
+  }))
+);
+    } catch (e: any) {
+      console.warn("[history] load failed:", e?.message);
+      setMessages([]);
+    } finally {
+      setThreadLoading(false);
+    }
+  })();
+}, [activeThread]);
+
+
 
   const handleSendMessage = useCallback(
     async (message: string) => {
@@ -157,6 +257,7 @@ const App: React.FC = () => {
 
       // optimistic user message + placeholder
       setMessages((prev) => [...prev, { role: "user", content: message }]);
+      forceScrollToBottom();
       const placeholderIndex = messages.length + 1;
       setMessages((prev) => [...prev, { role: "assistant", content: "typing... " }]);
 
@@ -247,6 +348,7 @@ const App: React.FC = () => {
         ...prev,
         { role: "user", content: label, attachmentName: file.name },
       ]);
+      forceScrollToBottom();
       const placeholderIndex = messages.length + 1;
       setMessages((prev) => [...prev, { role: "assistant", content: "typing... " }]);
 
@@ -362,10 +464,10 @@ const App: React.FC = () => {
     />
   <meta name="robots" content="noindex, nofollow" />
 
-    <div className="flex flex-col min-h-screen text-[#191D38] bg-[repeating-linear-gradient(to_bottom,#EAEBFF_0%,#FFFFFF_40%,#EAEBFF_80%)]">
+    <div className="flex flex-col h-screen text-[#191D38] bg-[repeating-linear-gradient(to_bottom,#EAEBFF_0%,#FFFFFF_40%,#EAEBFF_80%)]">
         <div id="voice-audio-root" className="fixed w-0 h-0 overflow-hidden opacity-0 pointer-events-none" aria-hidden="true" />
 
-      <div className="relative flex-1">
+      <div className="relative flex-1 overflow-hidden">
         {threadLoading && (
           <div className="absolute inset-0 z-10 flex items-center justify-center">
             <div className="flex items-center gap-3 rounded-2xl bg-white/90 border border-gray-200 shadow px-4 py-3">
@@ -378,19 +480,26 @@ const App: React.FC = () => {
           </div>
         )}
 
-        <div
-          ref={chatContainerRef}
-          className={`h-full overflow-y-auto p-4 md:p-6 space-y-6 transition-opacity ${
-            threadLoading ? "opacity-40 pointer-events-none" : ""
-          }`}
-        >
+ <div
+  ref={chatContainerRef}
+  className={`h-full overflow-y-auto p-4 md:p-6 flex flex-col transition-opacity ${
+    threadLoading ? "opacity-40 pointer-events-none" : ""
+  }`}
+>
+
+
           {messages.length === 0 ? (
             <WelcomeScreen />
           ) : (
-            <div className="max-w-3xl mx-auto w-full">
-              {messages.map((msg, index) => (
-                <ChatMessageDisplay key={index} message={msg} />
-              ))}
+            <div className="max-w-3xl mx-auto w-full space-y-6">
+
+             {messages.map((msg, index) => (
+  <ChatMessageDisplay
+    key={`${msg.role}-${index}-${msg.content.slice(0, 16)}`}
+    message={msg}
+  />
+))}
+
               {isLoading && messages[messages.length - 1]?.role === "user" && (
                 <ChatMessageDisplay
                   message={{ role: "assistant", content: "typing... " }}
@@ -400,10 +509,28 @@ const App: React.FC = () => {
             </div>
           )}
         </div>
+        {showJumpToLatest && (
+    <button
+      onClick={scrollToLatest}
+      className="
+        absolute bottom-6 right-4 z-20
+        flex items-center gap-2
+        rounded-full bg-white border border-gray-200
+        px-4 py-2 text-sm font-medium text-gray-700
+        shadow-lg hover:bg-gray-50
+        transition-all
+      "
+      aria-label="Jump to latest message"
+    >
+      <span className="text-lg">⬇</span>
+      <span className="hidden sm:inline">Jump to latest</span>
+    </button>
+  )}
       </div>
 
       <div className="px-4 pb-4 md:pb-8 w-full sticky bottom-0 bg-gradient-to-t from-white via-white/90 to-transparent">
         <div className="max-w-3xl mx-auto">
+          
        <ChatInput
   input={input}
   setInput={setInput}

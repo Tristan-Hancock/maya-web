@@ -14,8 +14,8 @@ import ConfirmDeleteModal from "./components/sidebar/confirmdelete";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { useIsMobile } from "./hooks/useIsMobile";
 import MobileAuthGate from "./auth/mobile/MobileAuthGate";
-
-
+import HealthInsights from "./pages/HealthInsights/HealthInsights";
+import HealthJournal from "./pages/HealthJournal/HealthJournal";
 function MenuIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
@@ -37,7 +37,7 @@ const DELETE_PATH = "/delete/prod/threads";
   const [leftOpen, setLeftOpen] = useState(false);
   const [showSubscription, setShowSubscription] = useState(false); // ✅ modal control
   const menuRef = useRef<HTMLDivElement>(null);
-  const { boot, ready, activeThread, setActiveThread, threads, refreshThreads } = useApp();
+  const { boot, ready, activeThread, setActiveThread, threads, refreshThreads,   activeSection } = useApp();
   const [pendingDeleteThread, setPendingDeleteThread] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   
@@ -45,6 +45,9 @@ const DELETE_PATH = "/delete/prod/threads";
     if (route === "app" && user) boot();
   }, [route, user, boot]);
 
+const openSubscription = () => {
+  setShowSubscription(true);
+};
 
   useEffect(() => {
     if (showSubscription) {
@@ -190,6 +193,8 @@ const DELETE_PATH = "/delete/prod/threads";
             }}
             onClose={() => setLeftOpen(false)}
             onDeleteThread={(thread) => setPendingDeleteThread(thread)}  // 👈 triggers modal in root
+            onUpgrade={openSubscription}   
+
           />
         </div>
     
@@ -228,7 +233,7 @@ const DELETE_PATH = "/delete/prod/threads";
       }}
       onClose={() => setLeftOpen(false)}
       onDeleteThread={(thread) => setPendingDeleteThread(thread)}
-
+      onUpgrade={openSubscription}
     />
   </div>
 </div>
@@ -241,7 +246,7 @@ const DELETE_PATH = "/delete/prod/threads";
   }`}
 >
 
-          <div className="h-full max-w-6xl mx-auto flex items-center justify-between">
+          <div className="h-full  px-6 md:px-8 flex items-center justify-between">
             <button
               type="button"
               aria-label="Open sidebar"
@@ -354,9 +359,12 @@ const DELETE_PATH = "/delete/prod/threads";
         <div className={leftOpen ? "h-14 lg:ml-72 transition-[margin]" : "h-14"} />
     
         {/* Content */}
-        <div className={`min-h-screen transition-[margin] duration-200 ${leftOpen ? "lg:ml-72" : ""}`}>
-          {children}
-        </div>
+      <div className={`min-h-screen transition-[margin] duration-200 ${leftOpen ? "lg:ml-72" : ""}`}>
+  {activeSection === "chat" && children}
+  {activeSection === "insights" && <HealthInsights />}
+  {activeSection === "journal" && <HealthJournal />}
+</div>
+
     
         {/* Subscription Popup */}
         {showSubscription && (

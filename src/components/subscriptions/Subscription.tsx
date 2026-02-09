@@ -24,66 +24,69 @@ const TIERS: Tier[] = [
     planCode: "free",
     price: "$0",
     yearPrice: "$0",
-    statement: "For those getting started with Maya",
+    statement: "For getting started with Maya",
     features: [
-      "5 Monthly Prompts",
+      "25 Monthly Prompts",
       "1 Image Upload",
       "1 Document Upload",
-      "3 Threads",
-      "Talk to Maya: No",
+      "3 Chats",
+      "Call Maya: Yes (2 mins Talk Time)",
     ],
     ctaText: "Current Plan",
     icon: LeafIcon,
   },
+  
   {
     name: "Tier 1",
     planCode: "tier1",
     price: "$12.99",
-    yearPrice: "$155",
-    statement: "For better experience with Maya",
+    yearPrice: "$156",
+    statement: "For light but consistent use of Maya",
     features: [
-      "20 Monthly Prompts",
-      "4 Image Uploads",
+      "150 Monthly Prompts",
+      "3 Image Uploads",
       "3 Document Uploads",
-      "6 Threads",
-      "Talk to Maya: No",
+      "3 Chats",
+      "Call Maya: Yes (7 mins Talk Time)",
     ],
     ctaText: "Upgrade",
     icon: DropIcon,
   },
+  
   {
     name: "Tier 2",
     planCode: "tier2",
-    price: "$18.99",
-    yearPrice: "$227",
-    statement: "For the best experience with Maya",
+    price: "$21.99",
+    yearPrice: "$264",
+    statement: "For regular voice conversations with Maya",
     features: [
-      "45 Monthly Prompts",
-      "8 Image Uploads",
-      "6 Document Uploads",
-      "12 Threads",
-      "Talk to Maya: Yes",
+      "500 Monthly Prompts",
+      "15 Image Uploads",
+      "15 Document Uploads",
+      "10 Chats",
+      "Call Maya: Yes (20 mins Talk Time)",
     ],
     ctaText: "Upgrade",
     icon: OveliaIcon,
     popular: true,
   },
+  
   {
     name: "Tier 3",
     planCode: "tier3",
-    price: "$39.99",
-    yearPrice: "$480",
-    statement: "For power users and heavy usage",
+    price: "$44.99",
+    yearPrice: "$540",
+    statement: "For frequent and extended use of Maya",
     features: [
-      "100 Monthly Prompts",
-      "12 Image Uploads",
-      "8 Document Uploads",
-      "20 Threads",
-      "Talk to Maya: Yes",
+      "2000 Monthly Prompts",
+      "50 Image Uploads",
+      "50 Document Uploads",
+      "20 Chats",
+      "Call Maya: Yes (45 mins Talk Time)",
     ],
     ctaText: "Upgrade",
     icon: AudienceIcon,
-  },
+  },  
 ];
 
 /* --------------------- MOBILE DETECTOR --------------------- */
@@ -106,7 +109,7 @@ function useIsMobile(breakpoint = 768) {
 
 const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onClose }) => {
   const { sub } = useApp();
-  const BASE = (import.meta as any).env?.VITE_API_BILLING_STRIPE_PROD as string;
+  const BASE = (import.meta as any).env?.VITE_API_BILLING_STRIPE_STAGE as string;
 
   const isMobile = useIsMobile();
   const currentPlanCode = sub?.plan_code ?? "free";
