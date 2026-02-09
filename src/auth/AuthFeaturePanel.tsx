@@ -21,7 +21,16 @@ const AuthFeaturePanel: React.FC = () => {
     const audioContextRef = useRef<AudioContext | null>(null);
     const sourceRef = useRef<AudioBufferSourceNode | null>(null);
     const audioBufferRef = useRef<AudioBuffer | null>(null);
-
+    const audioClosedRef = useRef(false);
+    const safeCloseAudioContext = async () => {
+      const ctx = audioContextRef.current;
+      if (!ctx || audioClosedRef.current) return;
+    
+      audioClosedRef.current = true;
+      await ctx.close();
+      audioContextRef.current = null;
+    };
+    
     // Typing animation state
     const phrases = useMemo(() => [
         'personal health companion.',
@@ -89,7 +98,8 @@ useEffect(() => {
   };
   initAudio();
   return () => {
-    audioContextRef.current?.close();
+    safeCloseAudioContext();
+
   };
 }, []);
 
@@ -109,7 +119,7 @@ useEffect(() => {
         }, 4000); // How long each question is displayed
 
         return () => { 
-             audioContextRef.current?.close();
+          safeCloseAudioContext();
              clearInterval(questionInterval);
         }
     }, [exampleQuestions.length]);

@@ -3,6 +3,10 @@ import React, {createContext, useContext, useState, useCallback, useRef} from "r
 import type {Subscription, FeatureFlags, ThreadMeta} from "./types";
 import { fetchAuthSession } from "aws-amplify/auth";
 
+
+
+export type AppSection = "chat" | "insights" | "journal";
+
 type AppState = {
   ready: boolean;
   sub: Subscription | null;
@@ -12,6 +16,9 @@ type AppState = {
   setActiveThread: (h: string|null) => void;
   refreshThreads: () => Promise<ThreadMeta[]>;
   boot: () => Promise<void>;
+
+  activeSection: AppSection;
+  setActiveSection: (s: AppSection) => void;
 };
 
 const C = createContext<AppState | null>(null);
@@ -37,6 +44,7 @@ export function AppProvider({children}:{children:React.ReactNode}) {
   const [threads, setThreads] = useState<ThreadMeta[]>([]);
   const [activeThread, _setActiveThread] = useState<string|null>(null);
   const booting = useRef(false);
+const [activeSection, setActiveSection] = useState<AppSection>("chat");
 
   const setActiveThread = (h:string|null) => {
     _setActiveThread(h);
@@ -141,6 +149,6 @@ const refreshThreads = useCallback(async (): Promise<ThreadMeta[]> => {
     // console.log("[threads] state set ->", threads.length, threads);
   }, [threads]);
   
-  const value: AppState = { ready, sub, flags, threads, activeThread, setActiveThread, refreshThreads, boot };
+  const value: AppState = { ready, sub, flags, threads, activeThread, setActiveThread, refreshThreads, boot ,  activeSection, setActiveSection, };
   return <C.Provider value={value}>{children}</C.Provider>;
 }
