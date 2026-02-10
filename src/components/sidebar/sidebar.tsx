@@ -140,7 +140,6 @@ function SidebarSectionButton({
      
     </div>
   </div>
-
   <button
     onClick={onClose}
     className="p-1.5 rounded-md hover:bg-slate-100 md:hidden"
@@ -151,7 +150,7 @@ function SidebarSectionButton({
 </div>
 
 
-      {/* App Sections */}
+      {/* App  Sections */}
  <div className="px-3 py-4 space-y-1 border-b border-slate-200">
   <SidebarSectionButton
     label="Chat with Maya"
