@@ -61,16 +61,30 @@ export async function sendMessage(
 export async function sendDocument(
   file: File,
   userMessage: string,
-  threadHandle?: string
+  threadHandle?: string,
+  chatContext?: { role: "user" | "assistant" | "system"; content: string }[]
 ): Promise<{ threadHandle: string; message: string }> {
-  const headers = await authHeaderAuthOnly();
+
+  const headers = await authHeaderAuthOnly(); // ← restore this
+
 
   const fd = new FormData();
   fd.append("file", file, file.name);
-  if (userMessage?.trim()) fd.append("userMessage", userMessage.trim());
-  if (threadHandle) fd.append("threadHandle", threadHandle);
-
-  const res = await fetch(`${API_BASE}/api/chat`, {
+  
+  if (userMessage?.trim()) {
+    fd.append("userMessage", userMessage.trim());
+  }
+  
+  if (threadHandle) {
+    fd.append("threadHandle", threadHandle);
+  }
+  
+  // 🔹 Send summarized context source
+  if (chatContext && Array.isArray(chatContext)) {
+    fd.append("chatContext", JSON.stringify(chatContext));
+  }
+  
+  const res = await fetch(`${API_BASE}/test/api/chat`, {
     method: "POST",
     headers, // no manual Content-Type
     body: fd,
