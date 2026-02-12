@@ -340,6 +340,19 @@ setMessages(
       if (isLoading) return;
       setIsLoading(true);
       setError(null);
+            // 🔹 Extract clean chat context BEFORE adding upload message
+            const chatContext = messages
+            .filter(
+              (m) =>
+                m.content &&
+                m.content.trim() !== "" &&
+                m.content !== "typing... "
+            )
+            .map((m) => ({
+              role: m.role,
+              content: m.content,
+            }));
+    
 
       const label = userMessage?.trim() ?? "";
 
@@ -356,8 +369,10 @@ setMessages(
         const { threadHandle: newHandle, message: reply } = await sendDocument(
           file,
           label,
-          activeThread ?? undefined
+          activeThread ?? undefined,
+          chatContext
         );
+        
 
         if (!activeThread && newHandle) setActiveThread(newHandle);
 
