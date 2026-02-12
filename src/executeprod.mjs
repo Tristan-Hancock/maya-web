@@ -46,6 +46,7 @@ const {
 
   OPENAI_API_KEY,
   ASSISTANT_ID,
+  ASSISTANT_ID_DOCS,
 
   ALLOW_ORIGINS,
 } = process.env;
@@ -57,6 +58,7 @@ if (!SECRET_SALT_ARN) throw new Error("SECRET_SALT_ARN required");
 if (!THREAD_SEAL_KEY_ARN) throw new Error("THREAD_SEAL_KEY_ARN required");
 if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY required");
 if (!ASSISTANT_ID) throw new Error("ASSISTANT_ID required");
+if (!ASSISTANT_ID_DOCS) throw new Error("ASSISTANT_ID_DOCS required");
 
 // Free tier caps (used when subscription_status !== "active")
 const FREE_USER_PROMPTS = 5;
@@ -418,7 +420,39 @@ async function releaseThreadSlot(anonUser) {
 
 /* -------------------------------- CHAT ROUTE ------------------------------- */
 
+//summerising chat history to send it off 
+async function summarizeChatContext(chatContext) {
+  if (!Array.isArray(chatContext) || chatContext.length === 0) {
+    return "";
+  }
+
+  const trimmed = chatContext.slice(-20);
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    temperature: 0.2,
+    messages: [
+      {
+        role: "system",
+        content:
+          "Summarize this conversation in under 200 words. Preserve medical facts, symptoms, goals, and relevant context. Remove small talk."
+      },
+      {
+        role: "user",
+        content: JSON.stringify(trimmed)
+      }
+    ]
+  });
+
+  return response.choices?.[0]?.message?.content?.trim() || "";
+}
+
+
+
+//main chat function
 async function routeChat(event) {
+  let chatContext = [];
+
   const origin = event.headers?.origin || event.headers?.Origin || "";
   if (event.requestContext?.http?.method === "OPTIONS")
     return ok({}, 204, corsHeaders(origin));
@@ -471,6 +505,8 @@ async function routeChat(event) {
     const bb = Busboy({ headers: { "content-type": ctHeader }, limits: { fileSize: MAX_DOC_BYTES, parts: 10, files: 1, fields: 20 } });
 
     const fields = {};
+
+    
     let fileBufs = [];
     let fileMime = "";
     let fileName = "";
@@ -493,6 +529,17 @@ async function routeChat(event) {
       if (String(e.message) === "too_large") return ok({ error: "too_large", cap_mb: 10 }, 413, corsHeaders(origin));
       return ok({ error: "multipart_parse_error" }, 400, corsHeaders(origin));
     }
+// Parse chatContext AFTER multipart parsing is complete
+if (fields.chatContext) {
+  try {
+    const parsed = JSON.parse(fields.chatContext);
+    if (Array.isArray(parsed)) {
+      chatContext = parsed;
+    }
+  } catch (e) {
+    console.warn("[chatContext] parse failed");
+  }
+}
 
     threadHandle = fields.threadHandle ? String(fields.threadHandle) : null;
     userMessage = fields.userMessage ? String(fields.userMessage).trim() : "";
@@ -502,6 +549,8 @@ async function routeChat(event) {
   } else {
     let body;
     try { body = JSON.parse(event.body); } catch { return ok({ error: "Invalid JSON" }, 400, corsHeaders(origin)); }
+    chatContext = Array.isArray(body.chatContext) ? body.chatContext : [];
+
     threadHandle = body.threadHandle || null;
     if (Array.isArray(body.messages)) {
       const u = body.messages.find(m => m?.role === "user" && typeof m.content === "string");
@@ -567,47 +616,92 @@ async function routeChat(event) {
   }
 
   // OpenAI (threads/messages/runs)
-  let tid;
-  try {
-    if (threadHandle) {
-      tid = await unsealThreadHandle(threadHandle, anonUser);
-    } else {
-      const created = await openai.beta.threads.create();
-      tid = created.id;
-      threadHandle = await sealThreadId(tid, anonUser);
-    }
-  } catch (e) {
-    if (reserved) await releaseThreadSlot(anonUser);
-    return ok({ error: "invalid_thread_handle" }, 400, corsHeaders(origin));
+  // OpenAI (threads/messages/runs)
+let tid;
+
+try {
+  if (threadHandle) {
+    tid = await unsealThreadHandle(threadHandle, anonUser);
+  } else {
+    const created = await openai.beta.threads.create();
+    tid = created.id;
+    threadHandle = await sealThreadId(tid, anonUser);
   }
+
+  // If file upload, inject summarized context into SAME thread
+  if (hasFile) {
+    const summary = await summarizeChatContext(chatContext);
+
+    if (summary) {
+      await openai.beta.threads.messages.create(tid, {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: `Previous conversation summary:\n${summary}`
+          }
+        ]
+      });
+    }
+  }
+
+} catch (e) {
+  if (reserved) await releaseThreadSlot(anonUser);
+  return ok({ error: "thread_create_failed" }, 500, corsHeaders(origin));
+}
+
 
   // Send message
   try {
     if (!hasFile) {
       await openai.beta.threads.messages.create(tid, { role: "user", content: [{ type: "text", text: content }] });
     } else {
+      console.log("📎 Uploading file to OpenAI:");
+console.log("Filename:", filePart.filename);
+console.log("Mime:", filePart.mime);
+console.log("Size:", filePart.buffer.length);
+
       const fileForOpenAI = await toFile(
         filePart.buffer,
         filePart.filename || "upload",
         { type: filePart.mime || "application/octet-stream" }
       );
       const uploaded = await openai.files.create({ file: fileForOpenAI, purpose: "assistants" });
+      console.log("✅ File uploaded to OpenAI:", uploaded.id);
+      console.log("📨 Creating thread message with attachment:", uploaded.id);
+      console.log("Thread ID:", tid);
+      console.log("Assistant will be:", ASSISTANT_ID_DOCS);
+      
       await openai.beta.threads.messages.create(tid, {
         role: "user",
         content: [{ type: "text", text: userMessage || "Please review the attached document." }],
-        attachments: [{ file_id: uploaded.id, tools: [{ type: "file_search" }] }],
-      });
+        attachments: [
+          {
+            file_id: uploaded.id,
+            tools: [{ type: "file_search" }]
+          }
+        ],
+              });
     }
   } catch (e) {
+    console.error("❌ MESSAGE CREATE FAILED");
+    console.error("Error message:", e?.message);
+    console.error("Full error:", JSON.stringify(e, null, 2));
+  
     if (reserved) await releaseThreadSlot(anonUser);
-    return ok({ error: "message_create_failed", reason: String(e?.message || e) }, 500, corsHeaders(origin));
+  
+    return ok({
+      error: "message_create_failed",
+      reason: e?.message || "unknown_error"
+    }, 500, corsHeaders(origin));
   }
+  
 
   // Run + polling (SDK-stable signature)
   let text = "";
   try {
     const run = await openai.beta.threads.runs.create(tid, {
-      assistant_id: ASSISTANT_ID,
+      assistant_id: hasFile ? ASSISTANT_ID_DOCS : ASSISTANT_ID,
       metadata: { userAnon: anonUser },
     });
 
@@ -1125,7 +1219,6 @@ async function routeDiag(event) {
   }
   return ok({ error: "Not found" }, 404);
 }
-
 
 /* -------------------------------- ROUTER ---------------------------------- */
 
