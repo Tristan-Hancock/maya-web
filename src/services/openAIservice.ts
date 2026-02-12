@@ -1,7 +1,7 @@
 // src/services/openAIservice.ts
 import { fetchAuthSession } from "aws-amplify/auth";
 
-const API_BASE = import.meta.env.VITE_API_BASE_STAGING as string; // e.g. https://.../prod
+const API_BASE = import.meta.env.VITE_API_BASE as string; // e.g. https://.../prod
 
 export type ChatMsg = { role: "user" | "assistant" | "system"; content: string };
 
@@ -30,7 +30,7 @@ export async function sendMessage(
 ): Promise<{ threadHandle: string; message: string }> {
   const headers = await authHeaderJSON();
 
-  const res = await fetch(`${API_BASE}/test/api/chat`, {
+  const res = await fetch(`${API_BASE}/api/chat`, {
     method: "POST",
     headers,
     body: JSON.stringify({
@@ -66,6 +66,7 @@ export async function sendDocument(
 ): Promise<{ threadHandle: string; message: string }> {
 
   const headers = await authHeaderAuthOnly(); // ← restore this
+
 
   const fd = new FormData();
   fd.append("file", file, file.name);
