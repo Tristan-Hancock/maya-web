@@ -17,7 +17,6 @@ type SubscriptionPageProps = { onClose?: () => void };
   noindex
 />
 
-
 const TIERS: Tier[] = [
   {
     name: "Starter",
@@ -26,11 +25,11 @@ const TIERS: Tier[] = [
     yearPrice: "$0",
     statement: "For getting started with Maya",
     features: [
-      "25 Monthly Prompts",
-      "1 Image Upload",
+      "12 Monthly Prompts",
+      "0 Image Uploads",
       "1 Document Upload",
       "3 Chats",
-      "Call Maya: Yes (2 mins Talk Time)",
+      "Call Maya: Yes (1 min Talk Time)",
     ],
     ctaText: "Current Plan",
     icon: LeafIcon,
@@ -43,11 +42,11 @@ const TIERS: Tier[] = [
     yearPrice: "$156",
     statement: "For light but consistent use of Maya",
     features: [
-      "150 Monthly Prompts",
-      "3 Image Uploads",
+      "90 Monthly Prompts",
+      "2 Image Uploads",
       "3 Document Uploads",
-      "3 Chats",
-      "Call Maya: Yes (7 mins Talk Time)",
+      "5 Chats",
+      "Call Maya: Yes (3 mins Talk Time)",
     ],
     ctaText: "Upgrade",
     icon: DropIcon,
@@ -60,11 +59,11 @@ const TIERS: Tier[] = [
     yearPrice: "$264",
     statement: "For regular voice conversations with Maya",
     features: [
-      "500 Monthly Prompts",
-      "15 Image Uploads",
-      "15 Document Uploads",
-      "10 Chats",
-      "Call Maya: Yes (20 mins Talk Time)",
+      "220 Monthly Prompts",
+      "5 Image Uploads",
+      "6 Document Uploads",
+      "8 Chats",
+      "Call Maya: Yes (10 mins Talk Time)",
     ],
     ctaText: "Upgrade",
     icon: OveliaIcon,
@@ -78,11 +77,11 @@ const TIERS: Tier[] = [
     yearPrice: "$540",
     statement: "For frequent and extended use of Maya",
     features: [
-      "2000 Monthly Prompts",
-      "50 Image Uploads",
-      "50 Document Uploads",
-      "20 Chats",
-      "Call Maya: Yes (45 mins Talk Time)",
+      "450 Monthly Prompts",
+      "10 Image Uploads",
+      "8 Document Uploads",
+      "12 Chats",
+      "Call Maya: Yes (20 mins Talk Time)",
     ],
     ctaText: "Upgrade",
     icon: AudienceIcon,
