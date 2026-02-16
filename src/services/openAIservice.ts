@@ -1,7 +1,7 @@
 // src/services/openAIservice.ts
 import { fetchAuthSession } from "aws-amplify/auth";
 
-const API_BASE = import.meta.env.VITE_API_BASE_PROD as string; // e.g. https://.../prod
+const API_BASE = import.meta.env.VITE_API_BASE as string; // e.g. https://.../prod
 
 export type ChatMsg = { role: "user" | "assistant" | "system"; content: string };
 
