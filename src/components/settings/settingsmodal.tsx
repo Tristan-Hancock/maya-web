@@ -100,8 +100,8 @@ const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription }) => {
       const idToken = tokens?.idToken?.toString();
       if (!idToken) throw new Error("Not authenticated");
 
-      const base = (import.meta as any).env?.VITE_API_BILLING_STRIPE_PROD as string;
-      if (!base) throw new Error("Billing base URL not configured (VITE_API_BILLING_STRIPE_PROD)");
+      const base = (import.meta as any).env?.VITE_API_BILLING_STRIPE_STAGE as string;
+      if (!base) throw new Error("Billing base URL not configured (VITE_API_BILLING_STRIPE_STAGE)");
 
       const url = base.endsWith("/")
         ? `${base}billing/stripe/portal`

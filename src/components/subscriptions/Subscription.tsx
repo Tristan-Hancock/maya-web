@@ -17,7 +17,6 @@ type SubscriptionPageProps = { onClose?: () => void };
   noindex
 />
 
-
 const TIERS: Tier[] = [
   {
     name: "Starter",
@@ -26,11 +25,11 @@ const TIERS: Tier[] = [
     yearPrice: "$0",
     statement: "For getting started with Maya",
     features: [
-      "25 Monthly Prompts",
-      "1 Image Upload",
-      "1 Document Upload",
+      "8 Monthly Prompts",
+      "0 Image Analysis",
+      "1 Document Analysis",
       "3 Chats",
-      "Call Maya: Yes (2 mins Talk Time)",
+      "Call Maya: Yes (1 min Talk Time)",
     ],
     ctaText: "Current Plan",
     icon: LeafIcon,
@@ -43,11 +42,11 @@ const TIERS: Tier[] = [
     yearPrice: "$156",
     statement: "For light but consistent use of Maya",
     features: [
-      "150 Monthly Prompts",
-      "3 Image Uploads",
-      "3 Document Uploads",
-      "3 Chats",
-      "Call Maya: Yes (7 mins Talk Time)",
+      "60 Monthly Messages",
+      "2 Image Analysis",
+      "3 Document Analysis",
+      "5 Chats",
+      "Call Maya: Yes (3 mins Talk Time)",
     ],
     ctaText: "Upgrade",
     icon: DropIcon,
@@ -60,11 +59,11 @@ const TIERS: Tier[] = [
     yearPrice: "$264",
     statement: "For regular voice conversations with Maya",
     features: [
-      "500 Monthly Prompts",
-      "15 Image Uploads",
-      "15 Document Uploads",
-      "10 Chats",
-      "Call Maya: Yes (20 mins Talk Time)",
+      "180 Monthly Messages",
+      "5 Image Analysis",
+      "6 Document Analysis",
+      "8 Chats",
+      "Call Maya: Yes (10 mins Talk Time)",
     ],
     ctaText: "Upgrade",
     icon: OveliaIcon,
@@ -78,11 +77,11 @@ const TIERS: Tier[] = [
     yearPrice: "$540",
     statement: "For frequent and extended use of Maya",
     features: [
-      "2000 Monthly Prompts",
-      "50 Image Uploads",
-      "50 Document Uploads",
-      "20 Chats",
-      "Call Maya: Yes (45 mins Talk Time)",
+      "300 Monthly Messages",
+      "10 Image Analysis",
+      "8 Document Analysis",
+      "12 Chats",
+      "Call Maya: Yes (20 mins Talk Time)",
     ],
     ctaText: "Upgrade",
     icon: AudienceIcon,
@@ -109,7 +108,7 @@ function useIsMobile(breakpoint = 768) {
 
 const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onClose }) => {
   const { sub } = useApp();
-  const BASE = (import.meta as any).env?.VITE_API_BILLING_STRIPE_PROD as string;
+  const BASE = (import.meta as any).env?.VITE_API_BILLING_STRIPE_STAGE as string;
 
   const isMobile = useIsMobile();
   const currentPlanCode = sub?.plan_code ?? "free";
