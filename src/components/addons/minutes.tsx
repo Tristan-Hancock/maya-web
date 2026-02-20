@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import MinsCards from "../../components/paymentui/MinsCards";
 import type { MayaMins, mins } from "../../types";
 import { fetchAuthSession } from "aws-amplify/auth";
-import { useApp } from "../../appContext";
 import SEO from "../seo/seo";
 
 import LeafIcon from "../../assets/leaf.svg";
@@ -45,7 +44,6 @@ const MINUTE_TIERS: MayaMins[] = [
 ];
 
 const AddOnPage: React.FC<AddOnPageProps> = ({ onClose }) => {
-  const { sub } = useApp();
   const BASE = (import.meta as any).env?.VITE_API_BILLING_STRIPE_STAGE as string;
 
   const [mode, setMode] = useState<"preset" | "custom">("preset");

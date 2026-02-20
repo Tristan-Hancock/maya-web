@@ -50,9 +50,7 @@ const DELETE_PATH = "/delete/prod/threads";
 const openSubscription = () => {
   setShowSubscription(true);
 };
-const openAddon = () => {
-  setShowAddon(true);
-}
+
 
   useEffect(() => {
     if (showSubscription) {
