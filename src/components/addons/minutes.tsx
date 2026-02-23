@@ -58,23 +58,22 @@ const AddOnPage: React.FC<AddOnPageProps> = ({ onClose }) => {
       ? Number(selectedPack)
       : customMinutes * PRICE_PER_MINUTE;
 
-  const purchasedMinutes =
-    mode === "preset"
-      ? Number(selectedPack)
-      : customMinutes;
+//   const purchasedMinutes =
+//     mode === "preset"
+//       ? Number(selectedPack)
+//       : customMinutes;
 
   /* ---------------- STRIPE CHECKOUT ---------------- */
-
   const handleCheckout = async () => {
     try {
       setIsProcessing(true);
-
+  
       const { tokens } = await fetchAuthSession();
       const idToken = tokens?.idToken?.toString();
       if (!idToken) throw new Error("Not authenticated");
-
+  
       const res = await fetch(
-        `${String(BASE).replace(/\/$/, "")}/billing/stripe/minutes`,
+        `${String(BASE).replace(/\/$/, "")}/billing/stripe/mayamins/checkout`,
         {
           method: "POST",
           headers: {
@@ -82,18 +81,16 @@ const AddOnPage: React.FC<AddOnPageProps> = ({ onClose }) => {
             Authorization: `Bearer ${idToken}`,
           },
           body: JSON.stringify({
-            minutes: purchasedMinutes,
-            price: currentPrice,
-            type: mode,
+            plan: selectedPack, // ✅ this is the only thing backend needs
           }),
         }
       );
-
+  
       const data = await res.json();
       if (!res.ok || !data?.url) {
         throw new Error(data?.error || "Checkout failed");
       }
-
+  
       window.location.href = data.url;
     } catch (err) {
       console.error(err);
@@ -111,31 +108,24 @@ const AddOnPage: React.FC<AddOnPageProps> = ({ onClose }) => {
       />
 
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md">
-        <div className="relative w-full max-w-4xl max-h-[90vh] bg-[#F8FAFC] rounded-3xl shadow-2xl flex flex-col overflow-hidden">
-
-          {/* HEADER */}
-          <div className="flex-shrink-0 bg-white border-b p-6">
-            <div className="flex items-center justify-between mb-5">
+      <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-[28px] shadow-[0_20px_60px_rgba(15,23,42,0.12)] flex flex-col overflow-hidden border border-[#E6EAF2]">          {/* HEADER */}
+      <div className="flex-shrink-0 bg-white border-b border-[#EEF1F6] p-6">            <div className="flex items-center justify-between mb-5">
               <div>
-                <h2 className="text-2xl font-black text-gray-900">
-                  Maya Minutes
+              <h2 className="text-3xl font-extrabold text-[#0F172A] tracking-[-0.02em]">                  Maya Minutes
                 </h2>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-                  Interactive Audio Packages
-                </p>
+                <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-[0.25em]">                </p>
               </div>
               <button onClick={onClose} className="text-gray-400 hover:text-gray-700">
                 ✕
               </button>
             </div>
 
-            <div className="flex bg-gray-100 p-1 rounded-xl max-w-xs">
-              <button
+            <div className="flex bg-[#F1F5F9] p-1 rounded-2xl max-w-xs border border-[#E2E8F0]">              <button
                 onClick={() => setMode("preset")}
-                className={`flex-1 py-2 rounded-lg text-xs font-black uppercase tracking-widest ${
+                className={`flex-1 py-2 rounded-xl text-sm font-semibold tracking-wide ${
                   mode === "preset"
-                    ? "bg-white shadow text-indigo-600"
-                    : "text-gray-500"
+                    ? "bg-white shadow-sm text-[#0F172A]"
+                    : "text-[#64748B]"
                 }`}
               >
                 Preset
@@ -143,10 +133,10 @@ const AddOnPage: React.FC<AddOnPageProps> = ({ onClose }) => {
 
               <button
                 onClick={() => setMode("custom")}
-                className={`flex-1 py-2 rounded-lg text-xs font-black uppercase tracking-widest ${
+                className={`flex-1 py-2 rounded-xl text-sm font-semibold tracking-wide ${
                   mode === "custom"
-                    ? "bg-white shadow text-indigo-600"
-                    : "text-gray-500"
+                    ? "bg-white shadow-sm text-[#0F172A]"
+                    : "text-[#64748B]"
                 }`}
               >
                 Custom
@@ -168,7 +158,7 @@ const AddOnPage: React.FC<AddOnPageProps> = ({ onClose }) => {
                 ))}
               </div>
             ) : (
-              <div className="bg-white p-10 rounded-2xl shadow-sm border max-w-2xl mx-auto">
+              <div className="bg-white p-10 rounded-2xl shadow-[0_10px_30px_rgba(15,23,42,0.06)] max-w-2xl mx-auto">
                 <div className="text-center mb-10">
                   <span className="text-7xl font-black tabular-nums">
                     {customMinutes}
@@ -178,28 +168,64 @@ const AddOnPage: React.FC<AddOnPageProps> = ({ onClose }) => {
                   </p>
                 </div>
 
-                <input
-                  type="range"
-                  min="1"
-                  max="500"
-                  value={customMinutes}
-                  onChange={(e) =>
-                    setCustomMinutes(Number(e.target.value))
-                  }
-                  className="w-full accent-indigo-600"
-                />
+                <div className="w-full">
+  <input
+    type="range"
+    min="1"
+    max="500"
+    value={customMinutes}
+    onChange={(e) => setCustomMinutes(Number(e.target.value))}
+    className="
+      w-full
+      appearance-none
+      bg-transparent
+      cursor-pointer
 
-                <div className="mt-8 flex justify-between items-center bg-indigo-50 p-5 rounded-xl">
+      h-2
+      rounded-full
+
+      [&::-webkit-slider-runnable-track]:h-2
+      [&::-webkit-slider-runnable-track]:rounded-full
+
+      [&::-webkit-slider-thumb]:appearance-none
+      [&::-webkit-slider-thumb]:h-5
+      [&::-webkit-slider-thumb]:w-5
+      [&::-webkit-slider-thumb]:rounded-full
+      [&::-webkit-slider-thumb]:bg-white
+      [&::-webkit-slider-thumb]:border-4
+      [&::-webkit-slider-thumb]:border-[#4F46E5]
+      [&::-webkit-slider-thumb]:shadow-[0_4px_14px_rgba(79,70,229,0.25)]
+      [&::-webkit-slider-thumb]:transition
+      [&::-webkit-slider-thumb]:duration-200
+      [&::-webkit-slider-thumb]:hover:scale-105
+
+      [&::-moz-range-thumb]:h-5
+      [&::-moz-range-thumb]:w-5
+      [&::-moz-range-thumb]:rounded-full
+      [&::-moz-range-thumb]:bg-white
+      [&::-moz-range-thumb]:border-4
+      [&::-moz-range-thumb]:border-[#4F46E5]
+      [&::-moz-range-thumb]:shadow-[0_4px_14px_rgba(79,70,229,0.25)]
+    "
+    style={{
+      background: `linear-gradient(to right, #4F46E5 0%, #4F46E5 ${
+        ((customMinutes - 1) / (500 - 1)) * 100
+      }%, #E5E7EB ${
+        ((customMinutes - 1) / (500 - 1)) * 100
+      }%, #E5E7EB 100%)`,
+    }}
+  />
+</div>
+
+                <div className="mt-8 flex justify-between items-center bg-[#EEF2FF] p-6 rounded-2xl">
                   <div>
-                    <p className="text-xs font-black text-indigo-400 uppercase tracking-widest">
-                      Rate
+                  <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-[0.25em]">                      Rate
                     </p>
                     <p className="text-lg font-black">$1 / min</p>
                   </div>
 
                   <div className="text-right">
-                    <p className="text-xs font-black text-indigo-400 uppercase tracking-widest">
-                      Total
+                  <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-[0.25em]">                      Total
                     </p>
                     <p className="text-2xl font-black text-indigo-600">
                       ${currentPrice}
@@ -211,23 +237,23 @@ const AddOnPage: React.FC<AddOnPageProps> = ({ onClose }) => {
           </div>
 
           {/* FOOTER */}
-          <div className="flex-shrink-0 bg-white border-t p-6 flex justify-between items-center">
+          <div className="flex-shrink-0 bg-white border-t border-[#EEF1F6] p-6 flex justify-between items-center">
             <div>
-              <p className="text-xs font-black text-gray-400 uppercase tracking-widest">
+              <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-[0.25em]">
                 Order Total
               </p>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-black">
+                <span className="text-4xl font-extrabold text-[#0F172A] tracking-[-0.02em]">
                   ${currentPrice}
                 </span>
-                <span className="text-xs font-bold text-gray-400">USD</span>
+                <span className="text-sm font-semibold text-[#94A3B8]">USD</span>
               </div>
             </div>
 
             <button
               onClick={handleCheckout}
               disabled={isProcessing}
-              className="px-12 py-4 bg-gray-900 text-white rounded-xl font-black hover:bg-black transition disabled:bg-gray-300"
+              className="px-12 py-4 bg-[#0F172A] text-white rounded-2xl font-semibold text-lg shadow-[0_8px_24px_rgba(15,23,42,0.25)] hover:bg-black transition disabled:bg-gray-300"
             >
               {isProcessing ? "Processing..." : "Complete Purchase"}
             </button>
