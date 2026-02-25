@@ -160,9 +160,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
     try {
       if (!onVoicePreflight || !onStartCall) throw new Error("voice_not_wired");
 
-      console.log("[voice] preflight → server");
       const { client_secret, session_deadline_ms, session_started_ms } = await onVoicePreflight();
-      console.log("[voice] preflight OK", { session_deadline_ms, session_started_ms: !!session_started_ms });
+      // console.log("[voice] preflight OK", { session_deadline_ms, session_started_ms: !!session_started_ms });
 
       // initialize callSeconds aligned to server start if provided
       setCallSeconds(() => {
@@ -173,14 +172,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
         return 0;
       });
 
-      console.log("[voice] onStartCall with client_secret…");
+      // console.log("[voice] onStartCall with client_secret…");
 
       // Pass server start + deadline through to parent onStartCall
       await onStartCall(client_secret, session_deadline_ms, session_started_ms);
 
       // UI state
       setCallActive(true);
-      console.log("[voice] callActive=true");
+      // console.log("[voice] callActive=true");
 
       clearEndTimer();
 
@@ -189,13 +188,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
       if (session_deadline_ms && session_deadline_ms > Date.now()) {
         const ms = Math.max(0, session_deadline_ms - Date.now() - 1000);
         endTimerRef.current = window.setTimeout(() => { endCall(); }, ms);
-        console.log("[voice] auto-end timer set (ms):", ms);
+        // console.log("[voice] auto-end timer set (ms):", ms);
       } else {
         endTimerRef.current = window.setTimeout(() => endCall(), 50_000);
-        console.log("[voice] fallback auto-end timer set (50s)");
+        // console.log("[voice] fallback auto-end timer set (50s)");
       }
     } catch (e: any) {
-      console.error("[voice] blocked/error:", e);
+      // console.error("[voice] blocked/error:", e);
       onVoiceBlocked?.(e);
     }
   };
@@ -206,12 +205,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
     setCallActive(false);
     const secs = callSeconds;
     setCallSeconds(0);
-    console.log("[voice] ending call, elapsedSec:", secs);
+    // console.log("[voice] ending call, elapsedSec:", secs);
     try {
       // Ensure the parent calls backend /voice/end exactly once
       await onEndCall?.(secs);
     } catch (e) {
-      console.warn("[voice] endCall error:", e);
+      // console.warn("[voice] endCall error:", e);
     }
   };
     // Listen for global auto-end dispatched by App so UI updates when server/Hook ends the call
@@ -224,9 +223,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
           clearEndTimer();
           setCallActive(false);
           setCallSeconds(elapsed || 0);
-          console.log("[voice] received maya_voice_auto_end, UI updated, elapsed:", elapsed);
+          // console.log("[voice] received maya_voice_auto_end, UI updated, elapsed:", elapsed);
         } catch (err) {
-          console.warn("[voice] maya_voice_auto_end handler error", err);
+          // console.warn("[voice] maya_voice_auto_end handler error", err);
         }
       };
       window.addEventListener("maya_voice_auto_end", handler as EventListener);

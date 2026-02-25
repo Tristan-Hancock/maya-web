@@ -149,7 +149,7 @@ export type VoiceSession = {
 
 export async function createVoiceSession(): Promise<VoiceSession> {
   const headers = await authHeaderJSON();
-  const res = await fetch(`${API_BASE}/test/realtime/session`, {
+  const res = await fetch(`${API_BASE}/realtime/session`, {
     method: "POST",
     headers,
     body: "{}",
@@ -179,7 +179,7 @@ export async function createVoiceSession(): Promise<VoiceSession> {
 
 export async function endVoiceSession(seconds: number): Promise<{ billed_seconds?: number; total_minutes_used?: number }> {
   const headers = await authHeaderJSON();
-  const res = await fetch(`${API_BASE}/test/realtime/end`, {
+  const res = await fetch(`${API_BASE}/realtime/end`, {
     method: "POST",
     headers,
     body: JSON.stringify({ elapsedSec: seconds }),

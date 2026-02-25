@@ -114,14 +114,14 @@ const forceScrollToBottom = () => {
 
         // call server end exactly once
         try { await endVoiceSession(elapsedSec); } catch (e) {
-          console.warn("[voice] onAutoEnd endVoiceSession failed", e);
+          // console.warn("[voice] onAutoEnd endVoiceSession failed", e);
         }
 
         // notify UI components (ChatInput) that call ended so they can update immediately
         try {
           window.dispatchEvent(new CustomEvent("maya_voice_auto_end", { detail: { elapsedSec } }));
         } catch (e) {
-          console.warn("[voice] dispatch maya_voice_auto_end failed", e);
+          // console.warn("[voice] dispatch maya_voice_auto_end failed", e);
         }
 
         // update UI state (clear gates, modals)
@@ -148,18 +148,18 @@ const forceScrollToBottom = () => {
       // prefer hook measured elapsed secs if it returns a non-zero value
       if (hookSecs && hookSecs > 0) secsToSend = hookSecs;
     } catch (e) {
-      console.warn("[voice] failed to stop local hook", e);
+      // console.warn("[voice] failed to stop local hook", e);
     }
 
     // call backend to settle billing and update usage
     try { await endVoiceSession(secsToSend); } catch (e) {
-      console.warn("[voice] endVoiceSession failed", e);
+      // console.warn("[voice] endVoiceSession failed", e);
     }
   };
 
   const onVoiceBlocked = (err: any) => {
     if (err?.message === "voice_not_wired") {
-      console.warn("[voice] ChatInput not wired correctly");
+      // console.warn("[voice] ChatInput not wired correctly");
       return;
     }
     setVoiceGate(buildVoiceGate(err));
@@ -250,7 +250,7 @@ setMessages(
   }))
 );
     } catch (e: any) {
-      console.warn("[history] load failed:", e?.message);
+      // console.warn("[history] load failed:", e?.message);
       setMessages([]);
     } finally {
       setThreadLoading(false);
