@@ -30,7 +30,7 @@ export async function sendMessage(
 ): Promise<{ threadHandle: string; message: string }> {
   const headers = await authHeaderJSON();
 
-  const res = await fetch(`${API_BASE}/test/api/chat`, {
+  const res = await fetch(`${API_BASE}/api/chat`, {
     method: "POST",
     headers,
     body: JSON.stringify({
