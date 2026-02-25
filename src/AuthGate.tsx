@@ -102,7 +102,6 @@ const openSubscription = () => {
     const url = `${API_BASE}${DELETE_PATH}`;
     const body = { threadHandle, pk: `thread#${threadHandle}` };
   
-    console.log("[DELETE][AuthGate] request", { url, body });
   
     const resp = await fetch(url, {
       method: "DELETE",
@@ -114,7 +113,6 @@ const openSubscription = () => {
     });
   
     const text = await resp.text();
-    console.log("[DELETE][AuthGate] raw response", resp.status, text);
   
     if (!resp.ok) {
       throw new Error(`delete_failed_${resp.status}`);
@@ -144,7 +142,6 @@ const openSubscription = () => {
         localStorage.clear();
         sessionStorage.clear();
       } catch (storageError) {
-        console.warn("[signout] local/session storage clear failed:", storageError);
       }
   
       // ✅ Amplify / Cognito sign-out
@@ -152,7 +149,6 @@ const openSubscription = () => {
   
       // console.log("[signout] complete — all caches cleared, user signed out.");
     } catch (e) {
-      console.error("[signout] failed:", e);
     }
   };
   
@@ -447,7 +443,7 @@ const openSubscription = () => {
 
                 await refreshThreads();
               } catch (e) {
-                console.error("[DELETE][AuthGate] failed", e);
+                // console.error("[DELETE][AuthGate] failed", e);
                 window.alert("Delete failed. Try again.");
               } finally {
                 setDeleting(false);

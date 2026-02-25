@@ -96,7 +96,7 @@ const AddOnPage: React.FC<AddOnPageProps> = ({ onClose }) => {
   
       window.location.href = data.url;
     } catch (err) {
-      console.error(err);
+    //   console.error(err);
     } finally {
       setIsProcessing(false);
     }

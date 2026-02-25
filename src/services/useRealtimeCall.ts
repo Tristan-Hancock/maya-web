@@ -64,11 +64,11 @@ export function useRealtimeCall() {
         } catch (e) {
           // swallow consumer errors
           // eslint-disable-next-line no-console
-          console.warn("[voice] onAutoEnd handler error", e);
+          // console.warn("[voice] onAutoEnd handler error", e);
         }
       } catch (e) {
         // eslint-disable-next-line no-console
-        console.warn("[voice] auto-end stop failed", e);
+        // console.warn("[voice] auto-end stop failed", e);
       } finally {
         clearAutoEndTimer();
       }
@@ -89,7 +89,7 @@ export function useRealtimeCall() {
     } catch (e) {
       // keep non-fatal
       // eslint-disable-next-line no-console
-      console.warn("[voice] dc send error:", e);
+      // console.warn("[voice] dc send error:", e);
     }
   }
 
@@ -135,12 +135,12 @@ export function useRealtimeCall() {
           consecutiveSilent = 0;
           ensurePlaybackUnlocked();
           // eslint-disable-next-line no-console
-          console.log("[voice] inbound audio bytesΔ:", delta);
+          // console.log("[voice] inbound audio bytesΔ:", delta);
         } else {
           consecutiveSilent += 1;
           if (consecutiveSilent === 3) {
             // eslint-disable-next-line no-console
-            console.log("[voice] silence detected, nudging response.create");
+            // console.log("[voice] silence detected, nudging response.create");
             speakOnce();
             ensurePlaybackUnlocked();
           }
@@ -207,11 +207,11 @@ export function useRealtimeCall() {
 
     pc.oniceconnectionstatechange = () => {
       // eslint-disable-next-line no-console
-      console.log("[voice] ice:", pc?.iceConnectionState);
+      // console.log("[voice] ice:", pc?.iceConnectionState);
     };
     pc.onconnectionstatechange = () => {
       // eslint-disable-next-line no-console
-      console.log("[voice] pc:", pc?.connectionState);
+      // console.log("[voice] pc:", pc?.connectionState);
       if (pc?.connectionState === "connected") {
         setTimeout(() => {
           speakOnce();
@@ -224,7 +224,7 @@ export function useRealtimeCall() {
     dc = pc.createDataChannel("oai-events");
     dc.onopen = () => {
       // eslint-disable-next-line no-console
-      console.log("[voice] datachannel open");
+      // console.log("[voice] datachannel open");
       speakOnce();
     };
     dc.onmessage = (e) => {
@@ -232,7 +232,7 @@ export function useRealtimeCall() {
         const ev = JSON.parse(e.data);
         if (ev?.type) {
           // eslint-disable-next-line no-console
-          console.debug("[oai]", ev.type);
+          // console.debug("[oai]", ev.type);
         }
       } catch {
         // ignore
@@ -244,7 +244,7 @@ export function useRealtimeCall() {
     };
     dc.onclose = async () => {
       // eslint-disable-next-line no-console
-      console.log("[voice] datachannel closed");
+      // console.log("[voice] datachannel closed");
 
       // Clear any existing auto-end timer so we don't double-fire
       clearAutoEndTimer();
@@ -261,11 +261,11 @@ export function useRealtimeCall() {
         } catch (e) {
           // swallow consumer errors
           // eslint-disable-next-line no-console
-          console.warn("[voice] onAutoEnd handler error from dc.onclose", e);
+          // console.warn("[voice] onAutoEnd handler error from dc.onclose", e);
         }
       } catch (e) {
         // eslint-disable-next-line no-console
-        console.warn("[voice] dc.onclose handling failed", e);
+        // console.warn("[voice] dc.onclose handling failed", e);
       } finally {
         clearAutoEndTimer();
       }
@@ -297,7 +297,7 @@ export function useRealtimeCall() {
       ensurePlaybackUnlocked();
       opts.onRemoteAudio?.(remoteAudioEl as HTMLAudioElement, stream);
       // eslint-disable-next-line no-console
-      console.log("[voice] remote track attached");
+      // console.log("[voice] remote track attached");
     };
 
     // Get mic
@@ -353,7 +353,7 @@ export function useRealtimeCall() {
     if (simulateFlag || simulatedSecret) {
       // Simulation path: do not POST SDP to OpenAI
       // eslint-disable-next-line no-console
-      console.log("[voice] simulation mode - skipping realtime SDP POST");
+      // console.log("[voice] simulation mode - skipping realtime SDP POST");
 
       setTimeout(() => {
         try {
@@ -396,7 +396,7 @@ export function useRealtimeCall() {
     const answer = await resp.text();
     await pc.setRemoteDescription({ type: "answer", sdp: answer });
     // eslint-disable-next-line no-console
-    console.log("[voice] remote description set; wait for connection and audio");
+    // console.log("[voice] remote description set; wait for connection and audio");
 
     // start stats watcher and schedule auto-end using the merged opts that may
     // include server-provided sessionDeadlineMs/sessionStartedMs (if the hook

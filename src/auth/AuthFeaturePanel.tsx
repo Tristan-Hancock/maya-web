@@ -93,7 +93,7 @@ useEffect(() => {
       const buffer = await ctx.decodeAudioData(arrayBuffer);
       audioBufferRef.current = buffer;
     } catch (err) {
-      console.error("Failed to load Maya intro audio:", err);
+      // console.error("Failed to load Maya intro audio:", err);
     }
   };
   initAudio();

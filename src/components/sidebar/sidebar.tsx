@@ -59,7 +59,7 @@ const handleSelect = (h: string) => {
     if (onDeleteThread) {
       onDeleteThread(threadHandle);
     } else {
-      console.warn("[Sidebar] onDeleteThread not provided, cannot delete", threadHandle);
+      // console.warn("[Sidebar] onDeleteThread not provided, cannot delete", threadHandle);
     }
   };
 
