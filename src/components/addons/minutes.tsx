@@ -72,6 +72,11 @@ const AddOnPage: React.FC<AddOnPageProps> = ({ onClose }) => {
       const idToken = tokens?.idToken?.toString();
       if (!idToken) throw new Error("Not authenticated");
   
+      const payload =
+        mode === "preset"
+          ? { plan: selectedPack }                  // existing fixed packs
+          : { customMinutes: customMinutes };       // send exact slider value
+  
       const res = await fetch(
         `${String(BASE).replace(/\/$/, "")}/billing/stripe/mayamins/checkout`,
         {
@@ -80,9 +85,7 @@ const AddOnPage: React.FC<AddOnPageProps> = ({ onClose }) => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${idToken}`,
           },
-          body: JSON.stringify({
-            plan: selectedPack, // ✅ this is the only thing backend needs
-          }),
+          body: JSON.stringify(payload),
         }
       );
   
