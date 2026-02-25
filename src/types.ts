@@ -24,6 +24,19 @@ export interface Tier {
   popular?: boolean;           // highlights the card
 }
 
+
+export type mins = "5" | "15" | "30" | "Custom"; //maya minutes 
+
+
+export interface MayaMins {
+  planCode: mins;
+  title: string;
+  description: string;
+  price: string;    
+  icon: string;                // path to icon asset    
+  popular?: boolean;           // showcase real value    
+}
+
 export type Subscription = {
   status: SubscriptionStatus;
   plan_code: PlanCode | "free";
