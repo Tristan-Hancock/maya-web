@@ -70,11 +70,11 @@ export default function VoiceGateModal({
             Close
           </button>
           <button
-            onClick={onUpgrade}
-            className="px-4 py-2 rounded-full text-white bg-[#6B66FF] hover:bg-[#5853e6]"
-          >
-            Upgrade
-          </button>
+  onClick={onUpgrade}
+  className="px-4 py-2 rounded-full text-white bg-[#6B66FF] hover:bg-[#5853e6]"
+>
+  Purchase Maya Minutes
+</button>
         </div>
       </div>
     </div>

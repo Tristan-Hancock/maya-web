@@ -10,6 +10,8 @@ import VoiceGateModal from "./components/voicemodel";
 import SubscriptionPage from "./components/subscriptions/Subscription";
 import { createVoiceSession, endVoiceSession } from "./services/openAIservice";
 import SEO from "./components/seo/seo";
+import UpgradeModal from "./components/UpgradeModal";
+import AddOnPage from "./components/addons/minutes";
 // Extend the local shape to allow an optional filename chip without
 // forcing a global types change.
 type ChatItem = ChatMessage & { attachmentName?: string | null };
@@ -24,6 +26,7 @@ const App: React.FC = () => {
   const voice = useRealtimeCall();
   const [voiceGate, setVoiceGate] = useState<Parameters<typeof VoiceGateModal>[0]["gate"]>(null);
   const [showSub, setShowSub] = useState(false);
+  const [showMinutes, setShowMinutes] = useState(false);
   const onVoicePreflight = async () => {
     const { client_secret, session_deadline_ms, session_started_ms } = await createVoiceSession();
     return { client_secret, session_deadline_ms, session_started_ms };
@@ -31,6 +34,14 @@ const App: React.FC = () => {
 
 const stickToBottomRef = useRef(true);
 const [showJumpToLatest, setShowJumpToLatest] = useState(false);
+const [upgradeGate, setUpgradeGate] = useState<
+  | { kind: "thread_limit"; cap?: number }
+  | { kind: "prompt_cap" }
+  | { kind: "doc_cap"; cap?: number }
+  | { kind: "generic" }
+  | null
+>(null);
+
 useEffect(() => {
   const el = chatContainerRef.current;
   if (!el) return;
@@ -286,31 +297,35 @@ setMessages(
         // Rotate nice upsell lines for prompt/doc caps
         const pickPaywall = () => {
           const PAYWALL_MESSAGES = [
-            "You’ve hit today’s free message limit. 🌸 Upgrade to keep going!",
-            "Daily cap reached. Subscribe to continue instantly.",
+            "You’ve hit the free message limit. 🌸 Upgrade to keep going!",
+            "Message cap reached. Subscribe to continue instantly.",
             "That’s the free limit for now. Go premium to resume your chat.",
             "Out of free messages. Upgrade for more."
           ];
           return PAYWALL_MESSAGES[Math.floor(Math.random() * PAYWALL_MESSAGES.length)];
         };
 
-        let displayMessage = `Sorry, I hit an error: ${errMsg}`;
+        let displayMessage = `Sorry, I’m having trouble responding. Could you please try again?`;
 
         if (status === 402) {
-
           if (reason === "thread_limit_reached") {
             displayMessage =
               `You’ve reached your free thread limit${cap !== undefined ? ` (${cap})` : ""}. ` +
-              `Delete an older conversation or subscribe to create more threads.`;
+              `Subscribe to create more threads.`;
+        
+            setUpgradeGate({ kind: "thread_limit", cap });
           } else if (reason === "prompt_cap") {
             displayMessage = pickPaywall();
+            setUpgradeGate({ kind: "prompt_cap" });
           } else if (reason === "doc_cap") {
-            // Document upload cap reached (parity with messages/threads)
             displayMessage =
               `You’ve reached your document upload limit${cap !== undefined ? ` (${cap})` : ""}. ` +
               `Upgrade your plan to attach more documents.`;
+        
+            setUpgradeGate({ kind: "doc_cap", cap });
           } else {
             displayMessage = pickPaywall();
+            setUpgradeGate({ kind: "generic" });
           }
         } else if (/invalid_thread_handle/i.test(errMsg)) {
           // Stale/invalid handle — clear it so next send starts fresh
@@ -385,20 +400,18 @@ setMessages(
         const status = e?.status;
         const reason = (e?.reason || e?.kind || "").toString(); // expects "doc_cap" on 402
         const cap = typeof e?.cap === "number" ? e.cap : undefined;
-        const errMsg = e?.message || "Upload failed";
+        // const errMsg = e?.message || "Upload failed";
 
-        let displayMessage = `Sorry, I couldn’t read that file: ${errMsg}`;
+        let displayMessage = `Sorry, I im having trouble opening the document, could you please try again? If this keeps happening, try a different file or upgrade your plan for more uploads.`;
         if (status === 402) {
           if (reason === "thread_limit_reached") {
-            displayMessage =
-              `You’ve reached your free thread limit${cap !== undefined ? ` (${cap})` : ""}. ` +
-              `Delete an older conversation or subscribe to create more threads.`;
+            setUpgradeGate({ kind: "thread_limit", cap });
           } else if (reason === "doc_cap") {
-            displayMessage =
-              `You’ve reached your document upload limit${cap !== undefined ? ` (${cap})` : ""}. ` +
-              `Upgrade your plan to attach more documents.`;
+            setUpgradeGate({ kind: "doc_cap", cap });
           } else if (reason === "prompt_cap") {
-            displayMessage = "You’ve hit today’s free message limit. 🌸 Upgrade to keep going!";
+            setUpgradeGate({ kind: "prompt_cap" });
+          } else {
+            setUpgradeGate({ kind: "generic" });
           }
         }
 
@@ -463,9 +476,11 @@ setMessages(
   }
   
   
-  const goUpgrade = () => {
+
+
+  const goPurchaseMinutes = () => {
     setVoiceGate(null);
-    setShowSub(true);
+    setShowMinutes(true);
   };
   
   return (
@@ -565,9 +580,19 @@ setMessages(
       <VoiceGateModal
   gate={voiceGate}
   onClose={() => setVoiceGate(null)}
-  onUpgrade={goUpgrade}
+  onUpgrade={goPurchaseMinutes}
 />
-
+<UpgradeModal
+  reason={upgradeGate}
+  onClose={() => setUpgradeGate(null)}
+  onUpgrade={() => {
+    setUpgradeGate(null);
+    setShowSub(true);
+  }}
+/>
+{showMinutes && (
+  <AddOnPage onClose={() => setShowMinutes(false)} />
+)}
 {showSub && (
   <SubscriptionPage onClose={() => setShowSub(false)} />
 )}
