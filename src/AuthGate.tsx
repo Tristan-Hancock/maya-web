@@ -7,6 +7,7 @@ import SignUpForm from "./auth/SignUpForm";
 import ConfirmSignUpForm from "./auth/ConfirmSignUpForm";
 import ForgotPasswordForm from "./auth/ForgotPasswordForm";
 import SubscriptionPage from "./components/subscriptions/Subscription"; // ✅ import popup component
+import AddOnPage from "./components/addons/minutes";
 import { useApp } from "./appContext";
 import Sidebar from "./components/sidebar/sidebar";
 import SettingsModal from "./components/settings/settingsmodal";
@@ -36,6 +37,7 @@ const DELETE_PATH = "/delete/prod/threads";
   const [menuOpen, setMenuOpen] = useState(false);
   const [leftOpen, setLeftOpen] = useState(false);
   const [showSubscription, setShowSubscription] = useState(false); // ✅ modal control
+  const [showAddon, setShowAddon] = useState(false); // ✅ addon control
   const menuRef = useRef<HTMLDivElement>(null);
   const { boot, ready, activeThread, setActiveThread, threads, refreshThreads,   activeSection } = useApp();
   const [pendingDeleteThread, setPendingDeleteThread] = useState<string | null>(null);
@@ -49,6 +51,7 @@ const openSubscription = () => {
   setShowSubscription(true);
 };
 
+
   useEffect(() => {
     if (showSubscription) {
       const prev = document.body.style.overflow;
@@ -56,7 +59,17 @@ const openSubscription = () => {
       return () => { document.body.style.overflow = prev; };
     }
   }, [showSubscription]);
+
+  useEffect(() =>{
+    if (showAddon){
+      const prev= document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = prev; };
+    }
+    }, [showAddon]);
   
+
+
   useEffect(() => {
     setMenuOpen(false);
     setLeftOpen(false);
@@ -256,6 +269,17 @@ const openSubscription = () => {
               <MenuIcon className="w-6 h-6 text-gray-700" />
             </button>
             <div className="flex items-center gap-3 relative" ref={menuRef}>
+
+{ /* add on button for maya minutes */}
+            <button
+  type="button"
+  onClick={() => setShowAddon(true)}
+  aria-label="Maya Minutes+"
+  className="pointer-events-auto flex items-center px-4 py-2 bg-white/80 backdrop-blur-md border border-indigo-100 rounded-full text-indigo-600 shadow-sm hover:shadow-md hover:bg-white hover:border-indigo-200 transition-all text-xs md:text-sm font-black tracking-tight group"
+>
+   Maya Minutes+
+</button>
+
   {/* Upgrade Button */}
   <button
   type="button"
@@ -365,6 +389,9 @@ const openSubscription = () => {
   {activeSection === "journal" && <HealthJournal />}
 </div>
 
+{showAddon && (
+  <AddOnPage onClose={() => setShowAddon(false)} />
+)}
     
         {/* Subscription Popup */}
         {showSubscription && (
