@@ -249,14 +249,16 @@ const openSubscription = () => {
 
     
         {/* Fixed top bar */}
-        <div
-  className={`fixed top-0 right-0 z-40 h-14 bg-white border-b border-gray-200 transition-[left] duration-200 ${
-    leftOpen ? "lg:left-72 left-0" : "left-0"
-  }`}
+{/* Fixed top bar */}
+<div
+  className={`
+    fixed top-0 z-40 h-14
+    bg-white border-b border-gray-200
+    transition-all duration-200
+    ${leftOpen ? "lg:left-72 lg:w-[calc(100%-18rem)] left-0 w-full" : "left-0 w-full"}
+  `}
 >
-
-          <div className="h-full  px-6 md:px-8 flex items-center justify-between">
-            <button
+<div className="h-full px-3 sm:px-4 md:px-8 flex items-center justify-between">            <button
               type="button"
               aria-label="Open sidebar"
               onClick={() => setLeftOpen((v) => !v)}
