@@ -273,6 +273,10 @@ useEffect(() => {
 
     // RESET SCROLL INTENT FOR NEW THREAD
     stickToBottomRef.current = true;
+    // Clear prior thread content immediately to avoid rendering stale messages
+    // when the newly selected thread history is still loading or failed.
+    setMessages([]);
+    setHistoryError(null);
     void loadThreadHistory(activeThread);
   }, [activeThread, loadThreadHistory]);
 
