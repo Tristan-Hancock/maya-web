@@ -3,10 +3,12 @@ import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { useApp } from "../../appContext";
 import DeleteAccountModal from "./deletaccount";
+import { fetchWithTimeout, isNetworkConnectivityError, isRequestTimeoutError } from "../../utils/network";
 
 type Props = {
   onClose: () => void;
   onOpenSubscription?: () => void;
+  onAfterAccountDeleted?: () => Promise<void> | void;
 };
 
 // function fmtDate(sec?: number | null) {
@@ -30,7 +32,7 @@ function daysLeft(sec?: number | string | null) {
   return Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)));
 }
 
-const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription }) => {
+const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription, onAfterAccountDeleted }) => {
   const { sub } = useApp();
   const [showDelete, setShowDelete] = useState(false);
   const [email, setEmail] = useState<string>("");
@@ -107,11 +109,15 @@ const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription }) => {
         ? `${base}billing/stripe/portal`
         : `${base}/billing/stripe/portal`;
 
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
-        body: JSON.stringify({}),
-      });
+      const res = await fetchWithTimeout(
+        url,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+          body: JSON.stringify({}),
+        },
+        12000
+      );
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -123,7 +129,13 @@ const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription }) => {
 
       window.location.assign(portalUrl);
     } catch (e: any) {
-      setErr(e?.message || "Failed to open billing portal");
+      if (isNetworkConnectivityError(e)) {
+        setErr("Network error, please check your internet connection");
+      } else if (isRequestTimeoutError(e)) {
+        setErr("Couldn’t reach billing right now. Please try again.");
+      } else {
+        setErr(e?.message || "Failed to open billing portal");
+      }
     } finally {
       setBusy(false);
     }
@@ -231,7 +243,8 @@ const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription }) => {
       {showDelete && (
         <DeleteAccountModal
           onClose={() => setShowDelete(false)}
-          onDeleted={() => {
+          onDeleted={async () => {
+            await onAfterAccountDeleted?.();
             setShowDelete(false);
             onClose();
           }}

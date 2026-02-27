@@ -3,6 +3,7 @@ import MinsCards from "../../components/paymentui/MinsCards";
 import type { MayaMins, mins } from "../../types";
 import { fetchAuthSession } from "aws-amplify/auth";
 import SEO from "../seo/seo";
+import { fetchWithTimeout, isNetworkConnectivityError, isRequestTimeoutError } from "../../utils/network";
 
 import LeafIcon from "../../assets/leaf.svg";
 import DropIcon from "../../assets/drop.svg";
@@ -50,6 +51,7 @@ const AddOnPage: React.FC<AddOnPageProps> = ({ onClose }) => {
   const [selectedPack, setSelectedPack] = useState<mins>("30");
   const [customMinutes, setCustomMinutes] = useState<number>(30);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const PRICE_PER_MINUTE = 1;
 
@@ -67,17 +69,19 @@ const AddOnPage: React.FC<AddOnPageProps> = ({ onClose }) => {
   const handleCheckout = async () => {
     try {
       setIsProcessing(true);
+      setCheckoutError(null);
   
       const { tokens } = await fetchAuthSession();
       const idToken = tokens?.idToken?.toString();
       if (!idToken) throw new Error("Not authenticated");
+      if (!BASE) throw new Error("Billing endpoint unavailable");
   
       const payload =
         mode === "preset"
           ? { plan: selectedPack }                  // existing fixed packs
           : { customMinutes: customMinutes };       // send exact slider value
   
-      const res = await fetch(
+      const res = await fetchWithTimeout(
         `${String(BASE).replace(/\/$/, "")}/billing/stripe/mayamins/checkout`,
         {
           method: "POST",
@@ -86,17 +90,25 @@ const AddOnPage: React.FC<AddOnPageProps> = ({ onClose }) => {
             Authorization: `Bearer ${idToken}`,
           },
           body: JSON.stringify(payload),
-        }
+        },
+        12000
       );
   
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.url) {
         throw new Error(data?.error || "Checkout failed");
       }
   
       window.location.href = data.url;
-    } catch (err) {
-    //   console.error(err);
+    } catch (err: any) {
+      console.error(err);
+      if (isNetworkConnectivityError(err)) {
+        setCheckoutError("Network error, please check your internet connection");
+      } else if (isRequestTimeoutError(err)) {
+        setCheckoutError("Couldn’t reach billing right now. Please try again.");
+      } else {
+        setCheckoutError(err?.message || "Checkout failed. Please try again.");
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -251,6 +263,9 @@ const AddOnPage: React.FC<AddOnPageProps> = ({ onClose }) => {
                 </span>
                 <span className="text-sm font-semibold text-[#94A3B8]">USD</span>
               </div>
+              {checkoutError && (
+                <p className="mt-2 text-sm text-red-600">{checkoutError}</p>
+              )}
             </div>
 
             <button

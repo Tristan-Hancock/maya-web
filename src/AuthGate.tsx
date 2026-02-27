@@ -1,5 +1,5 @@
 //AuthGate.tsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "./auth/AuthContext";
 import AuthShell from "./auth/AuthShell";
 import SignInForm from "./auth/SignInForm";
@@ -17,6 +17,8 @@ import { useIsMobile } from "./hooks/useIsMobile";
 import MobileAuthGate from "./auth/mobile/MobileAuthGate";
 import HealthInsights from "./pages/HealthInsights/HealthInsights";
 import HealthJournal from "./pages/HealthJournal/HealthJournal";
+import { clearMayaScopedStorage } from "./utils/storage";
+import { onAuthLost } from "./utils/authRecovery";
 function MenuIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
@@ -39,13 +41,10 @@ const DELETE_PATH = "/delete/prod/threads";
   const [showSubscription, setShowSubscription] = useState(false); // ✅ modal control
   const [showAddon, setShowAddon] = useState(false); // ✅ addon control
   const menuRef = useRef<HTMLDivElement>(null);
-  const { boot, ready, activeThread, setActiveThread, threads, refreshThreads,   activeSection } = useApp();
+  const signingOutRef = useRef(false);
+  const { boot, ready, activeThread, setActiveThread, clearThreadHandle, resetAppState, threads, refreshThreads, activeSection } = useApp();
   const [pendingDeleteThread, setPendingDeleteThread] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
-  
-  useEffect(() => {
-    if (route === "app" && user) boot();
-  }, [route, user, boot]);
 
 const openSubscription = () => {
   setShowSubscription(true);
@@ -125,32 +124,31 @@ const openSubscription = () => {
     }
   };
   
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
+    if (signingOutRef.current) return;
+    signingOutRef.current = true;
     try {
-      // ✅ Hard reset all local data to ensure no stale threads or tokens remain
-      // console.log("[signout] clearing local + session storage…");
-  
-      try {
-        // Remove all app-specific keys
-        Object.keys(localStorage).forEach((k) => {
-          if (k.includes("maya") || k.includes("thread") || k.includes("user")) {
-            localStorage.removeItem(k);
-          }
-        });
-  
-        // Full wipe as safety
-        localStorage.clear();
-        sessionStorage.clear();
-      } catch (storageError) {
-      }
-  
-      // ✅ Amplify / Cognito sign-out
+      clearThreadHandle();
+      clearMayaScopedStorage();
+      resetAppState();
       await doSignOut();
-  
-      // console.log("[signout] complete — all caches cleared, user signed out.");
     } catch (e) {
+      console.error("[signout] failed:", e);
+    } finally {
+      signingOutRef.current = false;
     }
-  };
+  }, [clearThreadHandle, resetAppState, doSignOut]);
+
+  useEffect(() => {
+    const off = onAuthLost(() => {
+      void handleSignOut();
+    });
+    return off;
+  }, [handleSignOut]);
+
+  useEffect(() => {
+    if (route === "app" && user) boot();
+  }, [route, user, boot]);
   
   if (loading)
     return (
@@ -191,8 +189,7 @@ const openSubscription = () => {
             isOpen={leftOpen}
             currentThreadId={activeThread}
             onNewChat={() => {
-              const subKey = (window as any)._mayaSubKey;
-              if (subKey) localStorage.removeItem(`maya:${subKey}:threadHandle`);
+              clearThreadHandle();
               setActiveThread(null);
               setLeftOpen(false);
             }}
@@ -231,8 +228,7 @@ const openSubscription = () => {
       isOpen={leftOpen}
       currentThreadId={activeThread}
       onNewChat={() => {
-        const subKey = (window as any)._mayaSubKey;
-        if (subKey) localStorage.removeItem(`maya:${subKey}:threadHandle`);
+        clearThreadHandle();
         setActiveThread(null);
         setLeftOpen(false);
       }}
@@ -416,6 +412,7 @@ const openSubscription = () => {
         {showSettings && (
           <SettingsModal
             onClose={() => setShowSettings(false)}
+            onAfterAccountDeleted={handleSignOut}
             onOpenSubscription={() => {
               setShowSettings(false);
               setShowSubscription(true);
