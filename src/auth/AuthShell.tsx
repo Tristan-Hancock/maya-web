@@ -31,6 +31,24 @@ export default function AuthShell({ children }: { children: React.ReactNode }) {
           <p className="text-center text-xs text-gray-500 mt-6">
             Maya can make mistakes. Verify important information.
           </p>
+          <div className="mt-3 flex items-center justify-center gap-4 text-xs text-gray-600">
+            <a href="/terms-and-conditions" className="hover:underline">
+              Terms
+            </a>
+            <a href="/privacy-policy" className="hover:underline">
+              Privacy
+            </a>
+            <a href="/cookie-policy" className="hover:underline">
+              Cookies
+            </a>
+          </div>
+          <p className="mt-2 text-center text-[11px] text-gray-500">
+            By using Maya, you agree to our{" "}
+            <a href="/terms-and-conditions" className="underline">
+              Terms and Conditions
+            </a>
+            .
+          </p>
         </div>
       </div>
     </div>
