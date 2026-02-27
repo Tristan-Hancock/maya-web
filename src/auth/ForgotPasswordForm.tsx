@@ -14,6 +14,7 @@ export default function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [pwd, setPwd] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -148,24 +149,35 @@ export default function ForgotPasswordForm() {
       />
 
       {/* New password */}
-      <input
-        type="password"
-        placeholder="New password"
-        value={pwd}
-        onChange={(e) => setPwd(e.target.value)}
-        className="
-          w-full
-          h-[52px]
-          px-4
-          rounded-xl
-          border
-          text-sm
-          text-[#0F172A]
-          placeholder-gray-400
-          outline-none
-          focus:ring-2 focus:ring-[#BBBFFE]
-        "
-      />
+      <div className="relative">
+        <input
+          type={showPwd ? "text" : "password"}
+          placeholder="New password"
+          value={pwd}
+          onChange={(e) => setPwd(e.target.value)}
+          className="
+            w-full
+            h-[52px]
+            pl-4
+            pr-14
+            rounded-xl
+            border
+            text-sm
+            text-[#0F172A]
+            placeholder-gray-400
+            outline-none
+            focus:ring-2 focus:ring-[#BBBFFE]
+          "
+        />
+        <button
+          type="button"
+          onClick={() => setShowPwd((v) => !v)}
+          className="absolute inset-y-0 right-0 px-4 text-xs font-medium text-[#1B2245] hover:opacity-80"
+          aria-label={showPwd ? "Hide password" : "Show password"}
+        >
+          {showPwd ? "Hide" : "Show"}
+        </button>
+      </div>
 
       {/* Message space */}
       <div className="min-h-[16px]">

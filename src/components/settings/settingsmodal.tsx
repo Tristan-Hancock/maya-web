@@ -7,6 +7,7 @@ import DeleteAccountModal from "./deletaccount";
 type Props = {
   onClose: () => void;
   onOpenSubscription?: () => void;
+  onAfterAccountDeleted?: () => Promise<void> | void;
 };
 
 // function fmtDate(sec?: number | null) {
@@ -30,7 +31,7 @@ function daysLeft(sec?: number | string | null) {
   return Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)));
 }
 
-const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription }) => {
+const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription, onAfterAccountDeleted }) => {
   const { sub } = useApp();
   const [showDelete, setShowDelete] = useState(false);
   const [email, setEmail] = useState<string>("");
@@ -231,7 +232,8 @@ const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription }) => {
       {showDelete && (
         <DeleteAccountModal
           onClose={() => setShowDelete(false)}
-          onDeleted={() => {
+          onDeleted={async () => {
+            await onAfterAccountDeleted?.();
             setShowDelete(false);
             onClose();
           }}

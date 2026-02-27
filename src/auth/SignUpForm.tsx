@@ -12,16 +12,20 @@ export default function SignUpForm() {
 
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     clearError();
     setLoading(true);
+    const normalizedEmail = email.trim().toLowerCase();
     try {
-      await doSignUp(email, pwd);
-      setPendingEmail(email);
+      await doSignUp(normalizedEmail, pwd);
+      setPendingEmail(normalizedEmail);
       // AuthContext will route to confirmSignUp
+    } catch {
+      // AuthContext already sets and exposes user-facing error text.
     } finally {
       setLoading(false);
     }
@@ -43,6 +47,8 @@ export default function SignUpForm() {
         placeholder="Email address"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
+        autoComplete="email"
+        required
         className="
           w-full
           h-[52px]
@@ -58,24 +64,37 @@ export default function SignUpForm() {
       />
 
       {/* Password */}
-      <input
-        type="password"
-        placeholder="Password"
-        value={pwd}
-        onChange={(e) => setPwd(e.target.value)}
-        className="
-          w-full
-          h-[52px]
-          px-4
-          rounded-xl
-          border
-          text-sm
-          text-[#0F172A]
-          placeholder-gray-400
-          outline-none
-          focus:ring-2 focus:ring-[#BBBFFE]
-        "
-      />
+      <div className="relative">
+        <input
+          type={showPwd ? "text" : "password"}
+          placeholder="Password"
+          value={pwd}
+          onChange={(e) => setPwd(e.target.value)}
+          autoComplete="new-password"
+          required
+          className="
+            w-full
+            h-[52px]
+            pl-4
+            pr-14
+            rounded-xl
+            border
+            text-sm
+            text-[#0F172A]
+            placeholder-gray-400
+            outline-none
+            focus:ring-2 focus:ring-[#BBBFFE]
+          "
+        />
+        <button
+          type="button"
+          onClick={() => setShowPwd((v) => !v)}
+          className="absolute inset-y-0 right-0 px-4 text-xs font-medium text-[#1B2245] hover:opacity-80"
+          aria-label={showPwd ? "Hide password" : "Show password"}
+        >
+          {showPwd ? "Hide" : "Show"}
+        </button>
+      </div>
 
       {/* Error space (fixed height) */}
       <div className="min-h-[16px]">

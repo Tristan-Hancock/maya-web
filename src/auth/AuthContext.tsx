@@ -195,17 +195,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const doSignOut = useCallback(async () => {
     setErr(null);
+    let signOutError: any = null;
     try {
       await amplifySignOut();
+    } catch (e: any) {
+      signOutError = e;
+      setErr(e?.message || "Sign out failed");
+    } finally {
+      // Always clear local auth view state so the app does not get stuck in an authenticated route.
       setUser(null);
       setDisplayLabel("");
       setDisplayInitial("U");
-      setPendingEmail(null); // clear pending email on sign-out
+      setPendingEmail(null);
       setRoute("signIn");
+    }
 
-    } catch (e: any) {
-      setErr(e?.message || "Sign out failed");
-      throw e;
+    if (signOutError) {
+      throw signOutError;
     }
   }, []);
 

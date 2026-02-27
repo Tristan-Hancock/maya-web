@@ -30,7 +30,9 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   useEffect(() => {
     if (isOpen && !wasOpenRef.current) {
-      void refreshThreads();
+      void refreshThreads().catch((e) => {
+        console.warn("[Sidebar] refreshThreads failed", e);
+      });
       wasOpenRef.current = true;
       return;
     }

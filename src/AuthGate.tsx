@@ -17,6 +17,7 @@ import { useIsMobile } from "./hooks/useIsMobile";
 import MobileAuthGate from "./auth/mobile/MobileAuthGate";
 import HealthInsights from "./pages/HealthInsights/HealthInsights";
 import HealthJournal from "./pages/HealthJournal/HealthJournal";
+import { clearMayaScopedStorage } from "./utils/storage";
 function MenuIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
@@ -39,7 +40,7 @@ const DELETE_PATH = "/delete/prod/threads";
   const [showSubscription, setShowSubscription] = useState(false); // ✅ modal control
   const [showAddon, setShowAddon] = useState(false); // ✅ addon control
   const menuRef = useRef<HTMLDivElement>(null);
-  const { boot, ready, activeThread, setActiveThread, threads, refreshThreads,   activeSection } = useApp();
+  const { boot, ready, activeThread, setActiveThread, clearThreadHandle, resetAppState, threads, refreshThreads, activeSection } = useApp();
   const [pendingDeleteThread, setPendingDeleteThread] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   
@@ -129,28 +130,10 @@ const openSubscription = () => {
   
   const handleSignOut = async () => {
     try {
-      // ✅ Hard reset all local data to ensure no stale threads or tokens remain
-      // console.log("[signout] clearing local + session storage…");
-  
-      try {
-        // Remove all app-specific keys
-        Object.keys(localStorage).forEach((k) => {
-          if (k.includes("maya") || k.includes("thread") || k.includes("user")) {
-            localStorage.removeItem(k);
-          }
-        });
-  
-        // Full wipe as safety
-        localStorage.clear();
-        sessionStorage.clear();
-      } catch (storageError) {
-        console.warn("[signout] local/session storage clear failed:", storageError);
-      }
-  
-      // ✅ Amplify / Cognito sign-out
+      clearThreadHandle();
+      clearMayaScopedStorage();
+      resetAppState();
       await doSignOut();
-  
-      // console.log("[signout] complete — all caches cleared, user signed out.");
     } catch (e) {
       console.error("[signout] failed:", e);
     }
@@ -195,8 +178,7 @@ const openSubscription = () => {
             isOpen={leftOpen}
             currentThreadId={activeThread}
             onNewChat={() => {
-              const subKey = (window as any)._mayaSubKey;
-              if (subKey) localStorage.removeItem(`maya:${subKey}:threadHandle`);
+              clearThreadHandle();
               setActiveThread(null);
               setLeftOpen(false);
             }}
@@ -235,8 +217,7 @@ const openSubscription = () => {
       isOpen={leftOpen}
       currentThreadId={activeThread}
       onNewChat={() => {
-        const subKey = (window as any)._mayaSubKey;
-        if (subKey) localStorage.removeItem(`maya:${subKey}:threadHandle`);
+        clearThreadHandle();
         setActiveThread(null);
         setLeftOpen(false);
       }}
@@ -420,6 +401,7 @@ const openSubscription = () => {
         {showSettings && (
           <SettingsModal
             onClose={() => setShowSettings(false)}
+            onAfterAccountDeleted={handleSignOut}
             onOpenSubscription={() => {
               setShowSettings(false);
               setShowSubscription(true);
