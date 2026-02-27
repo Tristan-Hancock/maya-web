@@ -12,6 +12,7 @@ import { createVoiceSession, endVoiceSession } from "./services/openAIservice";
 import SEO from "./components/seo/seo";
 import UpgradeModal from "./components/UpgradeModal";
 import AddOnPage from "./components/addons/minutes";
+import { isRequestTimeoutError } from "./utils/network";
 // Extend the local shape to allow an optional filename chip without
 // forcing a global types change.
 type ChatItem = ChatMessage & { attachmentName?: string | null };
@@ -23,6 +24,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [, setError] = useState<string | null>(null);
   const [threadLoading, setThreadLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const voice = useRealtimeCall();
   const [voiceGate, setVoiceGate] = useState<Parameters<typeof VoiceGateModal>[0]["gate"]>(null);
   const [showSub, setShowSub] = useState(false);
@@ -89,6 +91,7 @@ const forceScrollToBottom = () => {
 
   // guard to ensure we call /voice/end only once per call
   const endedRef = useRef(false);
+  const historyRequestIdRef = useRef(0);
 
   const onStartCallWithSecret = async (clientSecret: string, sessionDeadlineMs?: number, sessionStartedMs?: number) => {
     // reset guard
@@ -223,40 +226,55 @@ useEffect(() => {
 }, [messages]);
 
 
-  // loading thread sign overlay (kept as-is)
-useEffect(() => {
-  (async () => {
+  const loadThreadHistory = useCallback(async (threadHandle: string) => {
+    const requestId = ++historyRequestIdRef.current;
+    setThreadLoading(true);
+    setHistoryError(null);
+
+    try {
+      const hist = await fetchThreadHistory(threadHandle, 50);
+      if (requestId !== historyRequestIdRef.current) return;
+
+      setMessages(
+        hist.map((m: any) => ({
+          role: m.role,
+          content: m.content,
+          attachmentName:
+            m.attachmentName ??
+            m.attachment_name ??
+            m.filename ??
+            null,
+        }))
+      );
+    } catch (e: any) {
+      if (requestId !== historyRequestIdRef.current) return;
+      console.warn("[history] load failed:", e?.message);
+
+      const fallbackMessage = isRequestTimeoutError(e)
+        ? "Couldn’t load this conversation right now. Check your connection and retry."
+        : "Couldn’t load this conversation. Please retry.";
+      setHistoryError(fallbackMessage);
+    } finally {
+      if (requestId === historyRequestIdRef.current) {
+        setThreadLoading(false);
+      }
+    }
+  }, []);
+
+  // loading thread history with retryable fallback
+  useEffect(() => {
     if (!activeThread) {
+      historyRequestIdRef.current += 1;
       setMessages([]);
+      setHistoryError(null);
       setThreadLoading(false);
       return;
     }
 
-    // 🔑 RESET SCROLL INTENT FOR NEW THREAD
+    // RESET SCROLL INTENT FOR NEW THREAD
     stickToBottomRef.current = true;
-
-    setThreadLoading(true);
-    try {
-      const hist = await fetchThreadHistory(activeThread, 50);
-setMessages(
-  hist.map((m: any) => ({
-    role: m.role,
-    content: m.content,
-    attachmentName:
-      m.attachmentName ??
-      m.attachment_name ??
-      m.filename ??
-      null,
-  }))
-);
-    } catch (e: any) {
-      console.warn("[history] load failed:", e?.message);
-      setMessages([]);
-    } finally {
-      setThreadLoading(false);
-    }
-  })();
-}, [activeThread]);
+    void loadThreadHistory(activeThread);
+  }, [activeThread, loadThreadHistory]);
 
 
 
@@ -510,9 +528,21 @@ setMessages(
  <div
   ref={chatContainerRef}
   className={`h-full overflow-y-auto p-4 md:p-6 flex flex-col transition-opacity ${
-    threadLoading ? "opacity-40 pointer-events-none" : ""
+    threadLoading ? "opacity-40" : ""
   }`}
 >
+          {historyError && activeThread && (
+            <div className="max-w-3xl mx-auto w-full mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-center justify-between gap-3">
+              <span>{historyError}</span>
+              <button
+                type="button"
+                onClick={() => void loadThreadHistory(activeThread)}
+                className="shrink-0 rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-medium hover:bg-amber-100"
+              >
+                Retry
+              </button>
+            </div>
+          )}
 
 
           {messages.length === 0 ? (

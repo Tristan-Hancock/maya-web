@@ -1,7 +1,9 @@
 // src/services/openAIservice.ts
 import { fetchAuthSession } from "aws-amplify/auth";
+import { fetchWithTimeout } from "../utils/network";
 
 const API_BASE = import.meta.env.VITE_API_BASE_STAGING as string; // e.g. https://.../prod
+const API_TIMEOUT_MS = 12000;
 
 export type ChatMsg = { role: "user" | "assistant" | "system"; content: string };
 
@@ -30,7 +32,7 @@ export async function sendMessage(
 ): Promise<{ threadHandle: string; message: string }> {
   const headers = await authHeaderJSON();
 
-  const res = await fetch(`${API_BASE}/test/api/chat`, {
+  const res = await fetchWithTimeout(`${API_BASE}/test/api/chat`, {
     method: "POST",
     headers,
     body: JSON.stringify({
@@ -38,7 +40,7 @@ export async function sendMessage(
       content,
       ...(threadHandle ? { threadHandle } : {}),
     }),
-  });
+  }, API_TIMEOUT_MS);
 
   const data: any = await res.json().catch(() => ({}));
 
@@ -84,11 +86,11 @@ export async function sendDocument(
     fd.append("chatContext", JSON.stringify(chatContext));
   }
   
-  const res = await fetch(`${API_BASE}/test/api/chat`, {
+  const res = await fetchWithTimeout(`${API_BASE}/test/api/chat`, {
     method: "POST",
     headers, // no manual Content-Type
     body: fd,
-  });
+  }, API_TIMEOUT_MS);
 
   const data: any = await res.json().catch(() => ({}));
 
@@ -113,11 +115,11 @@ export async function fetchThreadHistory(
   limit = 50
 ): Promise<ChatMsg[]> {
   const headers = await authHeaderJSON();
-  const res = await fetch(`${API_BASE}/threads/chat/prod`, {
+  const res = await fetchWithTimeout(`${API_BASE}/threads/chat/prod`, {
     method: "POST",
     headers,
     body: JSON.stringify({ mode: "history", threadHandle, limit }),
-  });
+  }, API_TIMEOUT_MS);
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error || data?.reason || `http_${res.status}`);
@@ -149,11 +151,11 @@ export type VoiceSession = {
 
 export async function createVoiceSession(): Promise<VoiceSession> {
   const headers = await authHeaderJSON();
-  const res = await fetch(`${API_BASE}/test/realtime/session`, {
+  const res = await fetchWithTimeout(`${API_BASE}/test/realtime/session`, {
     method: "POST",
     headers,
     body: "{}",
-  });
+  }, API_TIMEOUT_MS);
   const data: any = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = new Error(data?.error || data?.reason || `http_${res.status}`) as any;
@@ -179,11 +181,11 @@ export async function createVoiceSession(): Promise<VoiceSession> {
 
 export async function endVoiceSession(seconds: number): Promise<{ billed_seconds?: number; total_minutes_used?: number }> {
   const headers = await authHeaderJSON();
-  const res = await fetch(`${API_BASE}/test/realtime/end`, {
+  const res = await fetchWithTimeout(`${API_BASE}/test/realtime/end`, {
     method: "POST",
     headers,
     body: JSON.stringify({ elapsedSec: seconds }),
-  });
+  }, API_TIMEOUT_MS);
   const data: any = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = new Error(data?.error || data?.reason || `http_${res.status}`) as any;
