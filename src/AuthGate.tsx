@@ -19,6 +19,8 @@ import HealthInsights from "./pages/HealthInsights/HealthInsights";
 import HealthJournal from "./pages/HealthJournal/HealthJournal";
 import { clearMayaScopedStorage } from "./utils/storage";
 import { onAuthLost } from "./utils/authRecovery";
+import { useLocation } from "react-router-dom";
+import { getLegalPageForPath } from "./pages/legal/LegalPages";
 function MenuIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
@@ -30,6 +32,9 @@ function MenuIcon(props: React.SVGProps<SVGSVGElement>) {
 export default function AuthGate({ children }: { children: React.ReactNode }) {
 
 const isMobile = useIsMobile();
+const location = useLocation();
+const legalPage = getLegalPageForPath(location.pathname);
+const isLegalRoute = !!legalPage;
 const API_BASE = import.meta.env.VITE_API_BASE as string;
 const DELETE_PATH = "/delete/prod/threads";
 
@@ -147,8 +152,10 @@ const openSubscription = () => {
   }, [handleSignOut]);
 
   useEffect(() => {
-    if (route === "app" && user) boot();
-  }, [route, user, boot]);
+    if (!isLegalRoute && route === "app" && user) boot();
+  }, [isLegalRoute, route, user, boot]);
+
+  if (legalPage) return <>{legalPage}</>;
   
   if (loading)
     return (
@@ -356,6 +363,17 @@ const openSubscription = () => {
           className="w-full text-sm px-3 py-2 rounded-xl hover:bg-gray-100 transition"
         >
           Settings
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setMenuOpen(false);
+            window.location.href = "/legal";
+          }}
+          className="w-full text-sm px-3 py-2 rounded-xl hover:bg-gray-100 transition"
+        >
+          Legal
         </button>
 
         <button
