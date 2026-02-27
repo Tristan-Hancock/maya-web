@@ -45,7 +45,7 @@ const MINUTE_TIERS: MayaMins[] = [
 ];
 
 const AddOnPage: React.FC<AddOnPageProps> = ({ onClose }) => {
-  const BASE = (import.meta as any).env?.VITE_API_BILLING_STRIPE_STAGE as string;
+  const BASE = (import.meta as any).env?.VITE_API_BILLING_STRIPE_PROD as string;
 
   const [mode, setMode] = useState<"preset" | "custom">("preset");
   const [selectedPack, setSelectedPack] = useState<mins>("30");
