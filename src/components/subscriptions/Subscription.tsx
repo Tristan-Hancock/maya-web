@@ -4,7 +4,7 @@ import type { Tier } from "../../types";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { useApp } from "../../appContext";
 import SEO from "../seo/seo";
-import { fetchWithTimeout, isRequestTimeoutError } from "../../utils/network";
+import { fetchWithTimeout, isNetworkConnectivityError, isRequestTimeoutError } from "../../utils/network";
 
 import LeafIcon from "../../assets/leaf.svg";
 import DropIcon from "../../assets/drop.svg";
@@ -170,7 +170,9 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onClose }) => {
 
       window.location.href = data.url;
     } catch (e: any) {
-      if (isRequestTimeoutError(e)) {
+      if (isNetworkConnectivityError(e)) {
+        setBillingError("Network error, please check your internet connection");
+      } else if (isRequestTimeoutError(e)) {
         setBillingError("Couldn’t reach billing right now. Please try again.");
       } else {
         setBillingError(e?.message || "Checkout failed. Please try again.");
@@ -199,7 +201,9 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onClose }) => {
       if (!res.ok || !data?.url) throw new Error(data?.error || "Portal URL missing");
       window.location.href = data.url;
     } catch (e: any) {
-      if (isRequestTimeoutError(e)) {
+      if (isNetworkConnectivityError(e)) {
+        setBillingError("Network error, please check your internet connection");
+      } else if (isRequestTimeoutError(e)) {
         setBillingError("Couldn’t reach billing right now. Please try again.");
       } else {
         setBillingError(e?.message || "Couldn’t open billing portal. Please try again.");

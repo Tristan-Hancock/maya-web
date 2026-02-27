@@ -1,5 +1,5 @@
 //AuthGate.tsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "./auth/AuthContext";
 import AuthShell from "./auth/AuthShell";
 import SignInForm from "./auth/SignInForm";
@@ -18,6 +18,7 @@ import MobileAuthGate from "./auth/mobile/MobileAuthGate";
 import HealthInsights from "./pages/HealthInsights/HealthInsights";
 import HealthJournal from "./pages/HealthJournal/HealthJournal";
 import { clearMayaScopedStorage } from "./utils/storage";
+import { onAuthLost } from "./utils/authRecovery";
 function MenuIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
@@ -40,13 +41,10 @@ const DELETE_PATH = "/delete/prod/threads";
   const [showSubscription, setShowSubscription] = useState(false); // ✅ modal control
   const [showAddon, setShowAddon] = useState(false); // ✅ addon control
   const menuRef = useRef<HTMLDivElement>(null);
+  const signingOutRef = useRef(false);
   const { boot, ready, activeThread, setActiveThread, clearThreadHandle, resetAppState, threads, refreshThreads, activeSection } = useApp();
   const [pendingDeleteThread, setPendingDeleteThread] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
-  
-  useEffect(() => {
-    if (route === "app" && user) boot();
-  }, [route, user, boot]);
 
 const openSubscription = () => {
   setShowSubscription(true);
@@ -128,7 +126,9 @@ const openSubscription = () => {
     }
   };
   
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
+    if (signingOutRef.current) return;
+    signingOutRef.current = true;
     try {
       clearThreadHandle();
       clearMayaScopedStorage();
@@ -136,8 +136,21 @@ const openSubscription = () => {
       await doSignOut();
     } catch (e) {
       console.error("[signout] failed:", e);
+    } finally {
+      signingOutRef.current = false;
     }
-  };
+  }, [clearThreadHandle, resetAppState, doSignOut]);
+
+  useEffect(() => {
+    const off = onAuthLost(() => {
+      void handleSignOut();
+    });
+    return off;
+  }, [handleSignOut]);
+
+  useEffect(() => {
+    if (route === "app" && user) boot();
+  }, [route, user, boot]);
   
   if (loading)
     return (

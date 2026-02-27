@@ -11,6 +11,13 @@ export function isRequestTimeoutError(err: unknown): boolean {
   return candidate.name === "RequestTimeoutError" || candidate.name === "AbortError" || candidate.message === "request_timeout";
 }
 
+export function isNetworkConnectivityError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const candidate = err as { message?: string };
+  const msg = String(candidate.message || "").toLowerCase();
+  return msg.includes("failed to fetch") || msg.includes("networkerror") || msg.includes("network request failed");
+}
+
 export async function fetchWithTimeout(
   input: RequestInfo | URL,
   init: RequestInit = {},

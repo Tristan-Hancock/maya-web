@@ -1,6 +1,7 @@
 // src/services/openAIservice.ts
 import { fetchAuthSession } from "aws-amplify/auth";
 import { fetchWithTimeout } from "../utils/network";
+import { isAuthStatus, isLikelyAuthError, notifyAuthLost } from "../utils/authRecovery";
 
 const API_BASE = import.meta.env.VITE_API_BASE_STAGING as string; // e.g. https://.../prod
 const API_TIMEOUT_MS = 12000;
@@ -8,17 +9,53 @@ const API_TIMEOUT_MS = 12000;
 export type ChatMsg = { role: "user" | "assistant" | "system"; content: string };
 
 // -------- Auth helpers --------
-async function authHeaderJSON() {
-  const { tokens } = await fetchAuthSession();
-  const idToken = tokens?.idToken?.toString();
-  if (!idToken) throw new Error("auth");
-  return { Authorization: `Bearer ${idToken}`, "Content-Type": "application/json" };
+async function getAuthHeaders(authOnly: boolean, forceRefresh = false) {
+  try {
+    const { tokens } = await fetchAuthSession(forceRefresh ? { forceRefresh: true } : undefined);
+    const idToken = tokens?.idToken?.toString();
+    if (!idToken) throw new Error("auth");
+    if (authOnly) {
+      return { Authorization: `Bearer ${idToken}` };
+    }
+    return { Authorization: `Bearer ${idToken}`, "Content-Type": "application/json" };
+  } catch (e) {
+    if (isLikelyAuthError(e)) {
+      notifyAuthLost("openai_service_headers");
+    }
+    throw e;
+  }
 }
-async function authHeaderAuthOnly() {
-  const { tokens } = await fetchAuthSession();
-  const idToken = tokens?.idToken?.toString();
-  if (!idToken) throw new Error("auth");
-  return { Authorization: `Bearer ${idToken}` }; // let browser set multipart boundary
+
+async function fetchAuthed(
+  url: string,
+  init: RequestInit,
+  authOnly: boolean
+): Promise<Response> {
+  const withHeaders = async (forceRefresh: boolean) => {
+    const merged = new Headers(init.headers ?? undefined);
+    const authHeaders = await getAuthHeaders(authOnly, forceRefresh);
+    Object.entries(authHeaders).forEach(([k, v]) => merged.set(k, v));
+    return fetchWithTimeout(url, { ...init, headers: merged, cache: "no-store" }, API_TIMEOUT_MS);
+  };
+
+  let res = await withHeaders(false);
+  if (isAuthStatus(res.status)) {
+    res = await withHeaders(true);
+  }
+  return res;
+}
+
+function toApiError(data: any, status: number, fallback: string, source: string) {
+  const err = new Error(data?.error || data?.reason || fallback) as any;
+  err.status = status;
+  err.reason = data?.reason || data?.kind || data?.error || null;
+  err.kind = data?.kind || null;
+  err.cap = data?.cap;
+  err.used = data?.used;
+  if (isLikelyAuthError(err)) {
+    notifyAuthLost(source);
+  }
+  return err;
 }
 
 // ========================================
@@ -30,27 +67,19 @@ export async function sendMessage(
   content: string,
   threadHandle?: string
 ): Promise<{ threadHandle: string; message: string }> {
-  const headers = await authHeaderJSON();
-
-  const res = await fetchWithTimeout(`${API_BASE}/test/api/chat`, {
+  const res = await fetchAuthed(`${API_BASE}/test/api/chat`, {
     method: "POST",
-    headers,
     body: JSON.stringify({
       mode: "send", // ignored by backend, harmless
       content,
       ...(threadHandle ? { threadHandle } : {}),
     }),
-  }, API_TIMEOUT_MS);
+  }, false);
 
   const data: any = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    const err = new Error(data?.error || data?.reason || `http_${res.status}`) as any;
-    err.status = res.status;
-    err.reason = data?.reason || data?.kind || null;
-    err.cap = data?.cap;
-    err.used = data?.used;
-    throw err;
+    throw toApiError(data, res.status, `http_${res.status}`, "send_message");
   }
 
   return {
@@ -66,10 +95,6 @@ export async function sendDocument(
   threadHandle?: string,
   chatContext?: { role: "user" | "assistant" | "system"; content: string }[]
 ): Promise<{ threadHandle: string; message: string }> {
-
-  const headers = await authHeaderAuthOnly(); // ← restore this
-
-
   const fd = new FormData();
   fd.append("file", file, file.name);
   
@@ -86,21 +111,15 @@ export async function sendDocument(
     fd.append("chatContext", JSON.stringify(chatContext));
   }
   
-  const res = await fetchWithTimeout(`${API_BASE}/test/api/chat`, {
+  const res = await fetchAuthed(`${API_BASE}/test/api/chat`, {
     method: "POST",
-    headers, // no manual Content-Type
     body: fd,
-  }, API_TIMEOUT_MS);
+  }, true);
 
   const data: any = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    const err = new Error(data?.error || data?.reason || `http_${res.status}`) as any;
-    err.status = res.status;
-    err.reason = data?.reason || data?.kind || null; // e.g., "doc_cap", "thread_limit_reached"
-    err.cap = data?.cap;
-    err.used = data?.used;
-    throw err;
+    throw toApiError(data, res.status, `http_${res.status}`, "send_document");
   }
 
   return {
@@ -114,15 +133,13 @@ export async function fetchThreadHistory(
   threadHandle: string,
   limit = 50
 ): Promise<ChatMsg[]> {
-  const headers = await authHeaderJSON();
-  const res = await fetchWithTimeout(`${API_BASE}/threads/chat/prod`, {
+  const res = await fetchAuthed(`${API_BASE}/threads/chat/prod`, {
     method: "POST",
-    headers,
     body: JSON.stringify({ mode: "history", threadHandle, limit }),
-  }, API_TIMEOUT_MS);
+  }, false);
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || data?.reason || `http_${res.status}`);
+  if (!res.ok) throw toApiError(data, res.status, `http_${res.status}`, "thread_history");
 
   const arr = Array.isArray(data.messages) ? data.messages : [];
   return arr
@@ -150,21 +167,13 @@ export type VoiceSession = {
 };
 
 export async function createVoiceSession(): Promise<VoiceSession> {
-  const headers = await authHeaderJSON();
-  const res = await fetchWithTimeout(`${API_BASE}/test/realtime/session`, {
+  const res = await fetchAuthed(`${API_BASE}/test/realtime/session`, {
     method: "POST",
-    headers,
     body: "{}",
-  }, API_TIMEOUT_MS);
+  }, false);
   const data: any = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const err = new Error(data?.error || data?.reason || `http_${res.status}`) as any;
-    err.status = res.status;
-    err.kind = data?.kind;
-    err.reason = data?.reason;
-    err.cap = data?.cap;
-    err.used = data?.used;
-    throw err;
+    throw toApiError(data, res.status, `http_${res.status}`, "voice_session");
   }
   return {
     client_secret: String(data.client_secret),
@@ -180,18 +189,13 @@ export async function createVoiceSession(): Promise<VoiceSession> {
 }
 
 export async function endVoiceSession(seconds: number): Promise<{ billed_seconds?: number; total_minutes_used?: number }> {
-  const headers = await authHeaderJSON();
-  const res = await fetchWithTimeout(`${API_BASE}/test/realtime/end`, {
+  const res = await fetchAuthed(`${API_BASE}/test/realtime/end`, {
     method: "POST",
-    headers,
     body: JSON.stringify({ elapsedSec: seconds }),
-  }, API_TIMEOUT_MS);
+  }, false);
   const data: any = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const err = new Error(data?.error || data?.reason || `http_${res.status}`) as any;
-    err.status = res.status;
-    err.kind = data?.kind;
-    throw err;
+    throw toApiError(data, res.status, `http_${res.status}`, "voice_end");
   }
   return { billed_seconds: data?.billed_seconds, total_minutes_used: data?.total_minutes_used };
 }

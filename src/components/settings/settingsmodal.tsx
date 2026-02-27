@@ -3,7 +3,7 @@ import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { useApp } from "../../appContext";
 import DeleteAccountModal from "./deletaccount";
-import { fetchWithTimeout, isRequestTimeoutError } from "../../utils/network";
+import { fetchWithTimeout, isNetworkConnectivityError, isRequestTimeoutError } from "../../utils/network";
 
 type Props = {
   onClose: () => void;
@@ -129,7 +129,9 @@ const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription, onAfterAc
 
       window.location.assign(portalUrl);
     } catch (e: any) {
-      if (isRequestTimeoutError(e)) {
+      if (isNetworkConnectivityError(e)) {
+        setErr("Network error, please check your internet connection");
+      } else if (isRequestTimeoutError(e)) {
         setErr("Couldn’t reach billing right now. Please try again.");
       } else {
         setErr(e?.message || "Failed to open billing portal");

@@ -3,7 +3,7 @@ import MinsCards from "../../components/paymentui/MinsCards";
 import type { MayaMins, mins } from "../../types";
 import { fetchAuthSession } from "aws-amplify/auth";
 import SEO from "../seo/seo";
-import { fetchWithTimeout, isRequestTimeoutError } from "../../utils/network";
+import { fetchWithTimeout, isNetworkConnectivityError, isRequestTimeoutError } from "../../utils/network";
 
 import LeafIcon from "../../assets/leaf.svg";
 import DropIcon from "../../assets/drop.svg";
@@ -102,7 +102,9 @@ const AddOnPage: React.FC<AddOnPageProps> = ({ onClose }) => {
       window.location.href = data.url;
     } catch (err: any) {
       console.error(err);
-      if (isRequestTimeoutError(err)) {
+      if (isNetworkConnectivityError(err)) {
+        setCheckoutError("Network error, please check your internet connection");
+      } else if (isRequestTimeoutError(err)) {
         setCheckoutError("Couldn’t reach billing right now. Please try again.");
       } else {
         setCheckoutError(err?.message || "Checkout failed. Please try again.");

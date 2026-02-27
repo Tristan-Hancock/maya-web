@@ -11,6 +11,7 @@ import {
   signOut as amplifySignOut,
   fetchAuthSession,
 } from "aws-amplify/auth";
+import { clearMayaAuthStorage } from "../utils/storage";
 
 type Route = "signIn" | "signUp" | "confirmSignUp" | "forgotPassword" | "app";
 
@@ -202,6 +203,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signOutError = e;
       setErr(e?.message || "Sign out failed");
     } finally {
+      // Ensure stale Cognito client tokens don't survive on failed/partial sign-out.
+      clearMayaAuthStorage();
       // Always clear local auth view state so the app does not get stuck in an authenticated route.
       setUser(null);
       setDisplayLabel("");

@@ -4,6 +4,7 @@ import type { Subscription, FeatureFlags, ThreadMeta } from "./types";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { getThreadStorageKey } from "./utils/storage";
 import { fetchWithTimeout } from "./utils/network";
+import { isAuthStatus, isLikelyAuthError, notifyAuthLost } from "./utils/authRecovery";
 
 export type AppSection = "chat" | "insights" | "journal";
 
@@ -134,19 +135,59 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [subKey]
   );
 
-  const authHeaders = useCallback(async () => {
-    const { tokens } = await fetchAuthSession();
-    const idToken = tokens?.idToken?.toString();
-    if (!idToken) throw new Error("Not authenticated");
-    return { Authorization: `Bearer ${idToken}` };
+  const authHeaders = useCallback(async (forceRefresh = false) => {
+    try {
+      const { tokens } = await fetchAuthSession(forceRefresh ? { forceRefresh: true } : undefined);
+      const idToken = tokens?.idToken?.toString();
+      if (!idToken) throw new Error("Not authenticated");
+      return { Authorization: `Bearer ${idToken}` };
+    } catch (e) {
+      if (isLikelyAuthError(e)) {
+        notifyAuthLost("auth_headers");
+      }
+      throw e;
+    }
   }, []);
 
+  const fetchWithAuthRefresh = useCallback(
+    async (
+      url: string,
+      init: RequestInit,
+      retries = 1,
+      timeoutMs = DEFAULT_TIMEOUT_MS
+    ) => {
+      const baseHeaders = (init.headers ?? {}) as Record<string, string>;
+      let res = await fetchWithRetry(
+        url,
+        { ...init, headers: { ...baseHeaders, ...(await authHeaders(false)) } },
+        retries,
+        timeoutMs
+      );
+
+      if (isAuthStatus(res.status)) {
+        res = await fetchWithRetry(
+          url,
+          { ...init, headers: { ...baseHeaders, ...(await authHeaders(true)) } },
+          0,
+          timeoutMs
+        );
+      }
+
+      return res;
+    },
+    [authHeaders]
+  );
+
   const fetchUserRow = useCallback(async (): Promise<Subscription> => {
-    const h = await authHeaders();
     const url = `${API_BASE_PAYMENTS}/billing/status`;
-    const res = await fetchWithRetry(url, { headers: h, cache: "no-store" }, 1);
+    const res = await fetchWithAuthRefresh(url, { cache: "no-store" }, 1);
     const j = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(j?.error || `failed GET ${url}`);
+    if (!res.ok) {
+      const err = new Error(j?.error || j?.reason || `failed GET ${url}`) as any;
+      err.status = res.status;
+      err.reason = j?.reason || j?.kind || j?.error;
+      throw err;
+    }
 
     return {
       status: j.subscription_status ?? "none",
@@ -157,13 +198,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       access_ends_at: j.access_ends_at ?? null,
       days_left: typeof j.days_left === "number" ? j.days_left : null,
     };
-  }, [authHeaders]);
+  }, [fetchWithAuthRefresh]);
 
   const refreshThreads = useCallback(async (): Promise<ThreadMeta[]> => {
-    const h = await authHeaders();
     const url = `${API_BASE}/threads/prod`;
 
-    const res = await fetchWithRetry(url, { headers: h, cache: "no-store" }, 1);
+    const res = await fetchWithAuthRefresh(url, { cache: "no-store" }, 1);
     const txt = await res.text();
 
     let j: any = {};
@@ -173,7 +213,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       console.error("[threads] JSON parse error:", e);
       throw new Error("Invalid JSON from /threads/prod");
     }
-    if (!res.ok) throw new Error(j?.error || `failed /threads/prod (${res.status})`);
+    if (!res.ok) {
+      const err = new Error(j?.error || j?.reason || `failed /threads/prod (${res.status})`) as any;
+      err.status = res.status;
+      err.reason = j?.reason || j?.kind || j?.error;
+      throw err;
+    }
 
     const list: ThreadMeta[] = (j.threads || j.items || [])
       .map((it: any) => ({
@@ -187,7 +232,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     setThreads(list);
     return list;
-  }, [authHeaders]);
+  }, [fetchWithAuthRefresh]);
 
   const reconcileThreadSelection = useCallback((targetSubKey: string, list: ThreadMeta[]) => {
     const storageKey = getThreadStorageKey(targetSubKey);
@@ -233,7 +278,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           if (bootVersion.current !== version) return;
           setSub(userRow);
           setFlags(flagsFrom(userRow));
-        } catch {
+        } catch (e) {
+          if (isLikelyAuthError(e)) {
+            notifyAuthLost("background_revalidate_user");
+            backgroundRetryTimer.current = null;
+            return;
+          }
           shouldRetry = true;
         }
 
@@ -241,7 +291,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const list = await refreshThreads();
           if (bootVersion.current !== version) return;
           reconcileThreadSelection(targetSubKey, list);
-        } catch {
+        } catch (e) {
+          if (isLikelyAuthError(e)) {
+            notifyAuthLost("background_revalidate_threads");
+            backgroundRetryTimer.current = null;
+            return;
+          }
           shouldRetry = true;
         }
 
@@ -266,13 +321,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const { tokens } = await fetchAuthSession();
-      const nextSubKey = (tokens?.idToken as any)?.payload?.sub as string | undefined;
+      let nextSubKey = (tokens?.idToken as any)?.payload?.sub as string | undefined;
+      if (!nextSubKey) {
+        const refreshed = await fetchAuthSession({ forceRefresh: true });
+        nextSubKey = (refreshed.tokens?.idToken as any)?.payload?.sub as string | undefined;
+      }
       if (!nextSubKey) throw new Error("missing_sub");
 
       setSubKey(nextSubKey);
 
       let shouldBackgroundRetry = false;
       const [userResult, threadsResult] = await Promise.allSettled([fetchUserRow(), refreshThreads()]);
+      const userAuthFailure = userResult.status === "rejected" && isLikelyAuthError(userResult.reason);
+      const threadAuthFailure = threadsResult.status === "rejected" && isLikelyAuthError(threadsResult.reason);
+
+      if (userAuthFailure && userResult.status === "rejected") throw userResult.reason;
+      if (threadAuthFailure && threadsResult.status === "rejected") throw threadsResult.reason;
 
       if (userResult.status === "fulfilled") {
         setSub(userResult.value);
@@ -292,7 +356,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (shouldBackgroundRetry) {
         scheduleBackgroundRevalidate(nextSubKey, version);
       }
-    } catch {
+    } catch (e) {
+      if (isLikelyAuthError(e)) {
+        notifyAuthLost("boot");
+      }
       resetAppState();
       setReady(true);
     } finally {
