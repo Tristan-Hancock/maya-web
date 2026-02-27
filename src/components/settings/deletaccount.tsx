@@ -31,9 +31,8 @@ const DeleteAccountModal: React.FC<Props> = ({ onClose, onDeleted }) => {
     setErr(null);
     try {
       await deleteUser();
-      try { localStorage.clear(); } catch {}
-      if (onDeleted) onDeleted();
-      onClose();
+      if (onDeleted) await onDeleted();
+      else onClose();
     } catch (e: any) {
       setErr(e?.message || "Failed to delete account");
     } finally {

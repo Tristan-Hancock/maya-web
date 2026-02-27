@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { JournalIcon , PlusIcon, MessageIcon, CloseIcon ,UserIcon , ChartBarIcon  } from "../icons/sidebaricons";
 import { useApp } from "../../appContext";
+import { isRequestTimeoutError } from "../../utils/network";
 
 
 export interface SidebarProps {
@@ -25,17 +26,38 @@ const Sidebar: React.FC<SidebarProps> = ({
   onUpgrade
 }) => {
   const { threads, activeThread, setActiveThread, refreshThreads ,  activeSection,setActiveSection, } = useApp();
+  const [refreshingThreads, setRefreshingThreads] = useState(false);
+  const [threadsError, setThreadsError] = useState<string | null>(null);
 
   const wasOpenRef = useRef<boolean>(false);
 
+  const refreshThreadList = useCallback(async () => {
+    try {
+      setRefreshingThreads(true);
+      setThreadsError(null);
+      await refreshThreads();
+    } catch (e) {
+      if (isRequestTimeoutError(e)) {
+        setThreadsError("Couldn’t load chat history right now.");
+      } else {
+        setThreadsError("Couldn’t refresh chat history.");
+      }
+      throw e;
+    } finally {
+      setRefreshingThreads(false);
+    }
+  }, [refreshThreads]);
+
   useEffect(() => {
     if (isOpen && !wasOpenRef.current) {
-      void refreshThreads();
+      void refreshThreadList().catch((e) => {
+        console.warn("[Sidebar] refreshThreads failed", e);
+      });
       wasOpenRef.current = true;
       return;
     }
     if (!isOpen) wasOpenRef.current = false;
-  }, [isOpen, refreshThreads]);
+  }, [isOpen, refreshThreadList]);
 
 const handleSelect = (h: string) => {
   setActiveSection("chat");
@@ -202,9 +224,29 @@ function SidebarSectionButton({
         className="flex-1 min-h-0 overflow-y-auto px-3 py-2 space-y-1.5 overscroll-contain"
         aria-label="Threads"
       >
+        {threadsError && (
+          <div className="px-2 py-2 space-y-2 rounded-lg border border-amber-200 bg-amber-50">
+            <div className="text-xs text-amber-700">{threadsError}</div>
+            <button
+              type="button"
+              onClick={() => {
+                void refreshThreadList().catch((e) => {
+                  console.warn("[Sidebar] manual thread refresh failed", e);
+                });
+              }}
+              disabled={refreshingThreads}
+              className="text-xs rounded-md border border-amber-300 bg-white px-2.5 py-1.5 hover:bg-amber-100 disabled:opacity-60"
+            >
+              {refreshingThreads ? "Refreshing…" : "Retry"}
+            </button>
+          </div>
+        )}
+
         {threads.length === 0 && (
-          <div className="text-sm text-slate-500 px-2 py-2">
-            No conversations yet
+          <div className="px-2 py-2">
+            <div className="text-sm text-slate-500">
+              No conversations yet
+            </div>
           </div>
         )}
 
