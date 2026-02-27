@@ -3,6 +3,7 @@ import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { useApp } from "../../appContext";
 import DeleteAccountModal from "./deletaccount";
+import { fetchWithTimeout, isRequestTimeoutError } from "../../utils/network";
 
 type Props = {
   onClose: () => void;
@@ -108,11 +109,15 @@ const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription, onAfterAc
         ? `${base}billing/stripe/portal`
         : `${base}/billing/stripe/portal`;
 
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
-        body: JSON.stringify({}),
-      });
+      const res = await fetchWithTimeout(
+        url,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+          body: JSON.stringify({}),
+        },
+        12000
+      );
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -124,7 +129,11 @@ const SettingsModal: React.FC<Props> = ({ onClose, onOpenSubscription, onAfterAc
 
       window.location.assign(portalUrl);
     } catch (e: any) {
-      setErr(e?.message || "Failed to open billing portal");
+      if (isRequestTimeoutError(e)) {
+        setErr("Couldn’t reach billing right now. Please try again.");
+      } else {
+        setErr(e?.message || "Failed to open billing portal");
+      }
     } finally {
       setBusy(false);
     }

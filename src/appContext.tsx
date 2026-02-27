@@ -1,8 +1,9 @@
 //appContext.tsx
-import React, { createContext, useContext, useState, useCallback, useRef } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import type { Subscription, FeatureFlags, ThreadMeta } from "./types";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { getThreadStorageKey } from "./utils/storage";
+import { fetchWithTimeout } from "./utils/network";
 
 export type AppSection = "chat" | "insights" | "journal";
 
@@ -28,14 +29,22 @@ const API_BASE = import.meta.env.VITE_API_BASE_STAGING as string;
 const API_BASE_PAYMENTS = import.meta.env.VITE_API_BILLING_STRIPE_STAGE as string;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+const DEFAULT_TIMEOUT_MS = 8000;
+const BACKGROUND_RETRY_MAX_ATTEMPTS = 3;
 
-async function fetchWithRetry(url: string, init: RequestInit, retries = 1): Promise<Response> {
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  retries = 1,
+  timeoutMs = DEFAULT_TIMEOUT_MS
+): Promise<Response> {
   let lastError: unknown;
 
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     try {
-      const res = await fetch(url, init);
-      if (res.status >= 500 && attempt < retries) {
+      const res = await fetchWithTimeout(url, init, timeoutMs);
+      if (RETRYABLE_STATUS.has(res.status) && attempt < retries) {
         await sleep(250 * (attempt + 1));
         continue;
       }
@@ -72,8 +81,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [subKey, setSubKey] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<AppSection>("chat");
   const booting = useRef(false);
+  const bootVersion = useRef(0);
+  const backgroundRetryTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (backgroundRetryTimer.current !== null) {
+        clearTimeout(backgroundRetryTimer.current);
+      }
+    };
+  }, []);
 
   const resetAppState = useCallback(() => {
+    bootVersion.current += 1;
+    if (backgroundRetryTimer.current !== null) {
+      clearTimeout(backgroundRetryTimer.current);
+      backgroundRetryTimer.current = null;
+    }
     setSub(null);
     setFlags(null);
     setThreads([]);
@@ -165,12 +189,80 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return list;
   }, [authHeaders]);
 
+  const reconcileThreadSelection = useCallback((targetSubKey: string, list: ThreadMeta[]) => {
+    const storageKey = getThreadStorageKey(targetSubKey);
+    const saved = localStorage.getItem(storageKey);
+
+    let fallback: string | null = null;
+    if (saved && list.some((t) => t.threadHandle === saved)) {
+      fallback = saved;
+    } else {
+      if (saved) {
+        try {
+          localStorage.removeItem(storageKey);
+        } catch {
+          // ignore storage access errors
+        }
+      }
+      fallback = list[0]?.threadHandle ?? null;
+    }
+
+    _setActiveThread((current) => {
+      if (current && list.some((t) => t.threadHandle === current)) return current;
+      return fallback;
+    });
+  }, []);
+
+  const scheduleBackgroundRevalidate = useCallback(
+    (targetSubKey: string, version: number, attempt = 1) => {
+      if (bootVersion.current !== version) return;
+      if (attempt > BACKGROUND_RETRY_MAX_ATTEMPTS) return;
+
+      if (backgroundRetryTimer.current !== null) {
+        clearTimeout(backgroundRetryTimer.current);
+      }
+
+      const delayMs = Math.min(12000, 2000 * attempt);
+      backgroundRetryTimer.current = window.setTimeout(async () => {
+        if (bootVersion.current !== version) return;
+
+        let shouldRetry = false;
+
+        try {
+          const userRow = await fetchUserRow();
+          if (bootVersion.current !== version) return;
+          setSub(userRow);
+          setFlags(flagsFrom(userRow));
+        } catch {
+          shouldRetry = true;
+        }
+
+        try {
+          const list = await refreshThreads();
+          if (bootVersion.current !== version) return;
+          reconcileThreadSelection(targetSubKey, list);
+        } catch {
+          shouldRetry = true;
+        }
+
+        if (shouldRetry) {
+          scheduleBackgroundRevalidate(targetSubKey, version, attempt + 1);
+          return;
+        }
+
+        backgroundRetryTimer.current = null;
+      }, delayMs);
+    },
+    [fetchUserRow, reconcileThreadSelection, refreshThreads]
+  );
+
   const boot = useCallback(async () => {
     if (booting.current) return;
     booting.current = true;
 
     setReady(false);
     resetAppState();
+    const version = bootVersion.current;
 
     try {
       const { tokens } = await fetchAuthSession();
@@ -179,34 +271,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       setSubKey(nextSubKey);
 
-      const userRow = await fetchUserRow();
-      setSub(userRow);
-      setFlags(flagsFrom(userRow));
+      let shouldBackgroundRetry = false;
+      const [userResult, threadsResult] = await Promise.allSettled([fetchUserRow(), refreshThreads()]);
 
-      const list = await refreshThreads();
-      const saved = localStorage.getItem(getThreadStorageKey(nextSubKey));
-
-      if (saved && list.some((t) => t.threadHandle === saved)) {
-        _setActiveThread(saved);
+      if (userResult.status === "fulfilled") {
+        setSub(userResult.value);
+        setFlags(flagsFrom(userResult.value));
       } else {
-        if (saved) {
-          try {
-            localStorage.removeItem(getThreadStorageKey(nextSubKey));
-          } catch {
-            // ignore storage access errors
-          }
-        }
-        if (list.length) _setActiveThread(list[0].threadHandle ?? null);
+        shouldBackgroundRetry = true;
+      }
+
+      if (threadsResult.status === "fulfilled") {
+        reconcileThreadSelection(nextSubKey, threadsResult.value);
+      } else {
+        shouldBackgroundRetry = true;
       }
 
       setReady(true);
+
+      if (shouldBackgroundRetry) {
+        scheduleBackgroundRevalidate(nextSubKey, version);
+      }
     } catch {
       resetAppState();
       setReady(true);
     } finally {
       booting.current = false;
     }
-  }, [fetchUserRow, refreshThreads, resetAppState]);
+  }, [fetchUserRow, reconcileThreadSelection, refreshThreads, resetAppState, scheduleBackgroundRevalidate]);
 
   const value: AppState = {
     ready,

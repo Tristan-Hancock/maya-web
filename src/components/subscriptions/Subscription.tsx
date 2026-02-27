@@ -4,6 +4,7 @@ import type { Tier } from "../../types";
 import { fetchAuthSession } from "aws-amplify/auth";
 import { useApp } from "../../appContext";
 import SEO from "../seo/seo";
+import { fetchWithTimeout, isRequestTimeoutError } from "../../utils/network";
 
 import LeafIcon from "../../assets/leaf.svg";
 import DropIcon from "../../assets/drop.svg";
@@ -109,6 +110,7 @@ function useIsMobile(breakpoint = 768) {
 const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onClose }) => {
   const { sub } = useApp();
   const BASE = (import.meta as any).env?.VITE_API_BILLING_STRIPE_STAGE as string;
+  const [billingError, setBillingError] = useState<string | null>(null);
 
   const isMobile = useIsMobile();
   const currentPlanCode = sub?.plan_code ?? "free";
@@ -136,48 +138,73 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onClose }) => {
   /* ------------------ SUBSCRIBE ------------------ */
 
   const onSubscribe = async (tier: Tier) => {
+    setBillingError(null);
     if (tier.planCode === "free") {
       onClose?.();
       return;
     }
 
-    const { tokens } = await fetchAuthSession();
-    const idToken = tokens?.idToken?.toString();
-    if (!idToken) throw new Error("Not authenticated");
+    try {
+      const { tokens } = await fetchAuthSession();
+      const idToken = tokens?.idToken?.toString();
+      if (!idToken) throw new Error("Not authenticated");
+      if (!BASE) throw new Error("Billing endpoint unavailable");
 
-    const res = await fetch(
-      `${String(BASE).replace(/\/$/, "")}/billing/stripe/checkout`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
+      const res = await fetchWithTimeout(
+        `${String(BASE).replace(/\/$/, "")}/billing/stripe/checkout`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({ plan_code: tier.planCode }),
         },
-        body: JSON.stringify({ plan_code: tier.planCode }),
+        12000
+      );
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.url) {
+        throw new Error(data?.error || "Checkout failed");
       }
-    );
 
-    const data = await res.json();
-    if (!res.ok || !data?.url) {
-      throw new Error(data?.error || "Checkout failed");
+      window.location.href = data.url;
+    } catch (e: any) {
+      if (isRequestTimeoutError(e)) {
+        setBillingError("Couldn’t reach billing right now. Please try again.");
+      } else {
+        setBillingError(e?.message || "Checkout failed. Please try again.");
+      }
     }
-
-    window.location.href = data.url;
   };
   
   const onManage = async () => {
-    const { tokens } = await fetchAuthSession();
-    const idToken = tokens?.idToken?.toString();
-    if (!idToken) throw new Error("Not authenticated");
+    setBillingError(null);
+    try {
+      const { tokens } = await fetchAuthSession();
+      const idToken = tokens?.idToken?.toString();
+      if (!idToken) throw new Error("Not authenticated");
+      if (!BASE) throw new Error("Billing endpoint unavailable");
 
-    const url = `${String(BASE).replace(/\/$/, "")}/billing/stripe/portal`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data?.url) throw new Error(data?.error || "Portal URL missing");
-    window.location.href = data.url;
+      const url = `${String(BASE).replace(/\/$/, "")}/billing/stripe/portal`;
+      const res = await fetchWithTimeout(
+        url,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+        },
+        12000
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.url) throw new Error(data?.error || "Portal URL missing");
+      window.location.href = data.url;
+    } catch (e: any) {
+      if (isRequestTimeoutError(e)) {
+        setBillingError("Couldn’t reach billing right now. Please try again.");
+      } else {
+        setBillingError(e?.message || "Couldn’t open billing portal. Please try again.");
+      }
+    }
   };
 
 
@@ -247,6 +274,9 @@ const SubscriptionPage: React.FC<SubscriptionPageProps> = ({ onClose }) => {
               Current plan:{" "}
               <span className="font-semibold">{currentPlanCode}</span>
             </p>
+            {billingError && (
+              <p className="mt-3 text-sm text-red-600">{billingError}</p>
+            )}
           </div>
 
           {/* SCROLLABLE CONTENT */}
