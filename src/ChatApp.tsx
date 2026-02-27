@@ -17,7 +17,7 @@ import AddOnPage from "./components/addons/minutes";
 type ChatItem = ChatMessage & { attachmentName?: string | null };
 
 const App: React.FC = () => {
-  const { activeThread, setActiveThread } = useApp();
+  const { activeThread, setActiveThread, clearThreadHandle } = useApp();
   const [messages, setMessages] = useState<ChatItem[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -329,10 +329,7 @@ setMessages(
           }
         } else if (/invalid_thread_handle/i.test(errMsg)) {
           // Stale/invalid handle — clear it so next send starts fresh
-          try {
-            const subKey = (window as any)._mayaSubKey as string | undefined;
-            if (subKey) localStorage.removeItem(`maya:${subKey}:threadHandle`);
-          } catch {}
+          clearThreadHandle();
           setActiveThread(null);
           displayMessage = "That conversation handle looks stale. I’ve reset it—try sending again.";
         }
@@ -346,7 +343,7 @@ setMessages(
         setIsLoading(false);
       }
     },
-    [isLoading, activeThread, messages.length, setActiveThread]
+    [isLoading, activeThread, messages.length, setActiveThread, clearThreadHandle]
   );
 
   // NEW: handle document + optional context, with doc-cap parity
